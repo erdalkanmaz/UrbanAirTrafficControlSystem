@@ -1,0 +1,463 @@
+# Urban Air Traffic Control System - Proje Bağlamı ve Mimari
+
+**Bu dosya, proje hakkında tüm kritik bilgileri içerir. Yeni bir chat oturumunda bu dosya okunarak proje durumu anlaşılabilir.**
+
+**Son Güncelleme:** 2024  
+**Versiyon:** 1.0-SNAPSHOT
+
+---
+
+## 📋 İçindekiler
+
+1. [Proje Genel Bakış](#proje-genel-bakış)
+2. [Mimari Yapı](#mimari-yapı)
+3. [Paket Detayları](#paket-detayları)
+4. [Tasarım Kararları](#tasarım-kararları)
+5. [Geliştirme Prensipleri](#geliştirme-prensipleri)
+6. [Mevcut Durum](#mevcut-durum)
+7. [Gelecek Planlar](#gelecek-planlar)
+
+---
+
+## 🎯 Proje Genel Bakış
+
+### Amaç
+Şehir içi hava taşımacılığı için kapsamlı hava trafik seyir ve yönetim programı. VTOL (Vertical Take-Off and Landing) araçlar için trafik kontrolü, rota yönetimi ve güvenlik sistemleri sağlar.
+
+### Teknoloji Stack
+- **Java:** 17
+- **JavaFX:** 17.0.10 (UI için)
+- **Maven:** 3.x (Build tool)
+- **JUnit:** 5.9.2 (Testing)
+- **Gson:** 2.10.1 (JSON işleme)
+- **Log4j:** 2.20.0 (Logging)
+
+### Proje Yapısı
+```
+AirTrafficControlSystem/
+├── src/
+│   ├── main/java/com/airtraffic/
+│   │   ├── model/      # Veri modelleri (6 dosya)
+│   │   ├── map/        # Harita yönetimi (6 dosya)
+│   │   ├── rules/      # Trafik kuralları (5 dosya)
+│   │   ├── control/    # Merkezi kontrol (4 dosya)
+│   │   └── ui/         # Kullanıcı arayüzü (henüz yok)
+│   └── test/java/com/airtraffic/
+│       └── model/      # Model testleri (3 dosya, 53 test)
+├── pom.xml
+└── Dokümantasyon dosyaları
+```
+
+---
+
+## 🏗️ Mimari Yapı
+
+### Katmanlı Mimari
+
+```
+┌─────────────────────────────────────┐
+│         UI Layer (JavaFX)           │  ← Henüz yok
+├─────────────────────────────────────┤
+│      Control Layer                  │
+│  ┌──────────────────────────────┐   │
+│  │ TrafficControlCenter         │   │  ← Singleton, merkezi koordinasyon
+│  │ BaseStation                  │   │  ← İletişim altyapısı
+│  │ FlightAuthorization          │   │  ← İzin yönetimi
+│  └──────────────────────────────┘   │
+├─────────────────────────────────────┤
+│      Rules Layer                    │
+│  ┌──────────────────────────────┐   │
+│  │ TrafficRuleEngine            │   │  ← Kural motoru
+│  │ TrafficRule (abstract)       │   │  ← Temel kural sınıfı
+│  │ SpeedLimitRule               │   │  ← Hız limiti kuralları
+│  │ EntryExitRule                │   │  ← Giriş/çıkış kuralları
+│  └──────────────────────────────┘   │
+├─────────────────────────────────────┤
+│      Map Layer                      │
+│  ┌──────────────────────────────┐   │
+│  │ CityMap                      │   │  ← Şehir hava sahası
+│  │ RouteNetwork                 │   │  ← Rota ağı
+│  │ Obstacle                     │   │  ← Engeller
+│  │ RestrictedZone               │   │  ← Yasak bölgeler
+│  └──────────────────────────────┘   │
+├─────────────────────────────────────┤
+│      Model Layer                    │
+│  ┌──────────────────────────────┐   │
+│  │ Position                     │   │  ← 3D konum
+│  │ Vehicle                      │   │  ← VTOL araç
+│  │ Route                        │   │  ← Uçuş rotası
+│  │ Enums (VehicleType, etc.)    │   │  ← Sabitler
+│  └──────────────────────────────┘   │
+└─────────────────────────────────────┘
+```
+
+### Sınıf İlişkileri
+
+```
+TrafficControlCenter (Singleton)
+    ├── CityMap
+    │   ├── RouteNetwork
+    │   ├── Obstacle[]
+    │   └── RestrictedZone[]
+    ├── TrafficRuleEngine
+    │   └── TrafficRule[]
+    │       ├── SpeedLimitRule
+    │       └── EntryExitRule
+    ├── BaseStation[]
+    ├── Vehicle[] (activeVehicles)
+    └── FlightAuthorization[]
+
+Vehicle
+    ├── Position (3D konum)
+    ├── Route (planlanan rota)
+    ├── VehicleType (enum)
+    ├── VehicleStatus (enum)
+    └── AutomationLevel (enum)
+
+Route
+    └── Position[] (waypoints)
+```
+
+---
+
+## 📦 Paket Detayları
+
+### 1. Model Paketi (`com.airtraffic.model`)
+
+**Amaç:** Temel veri modelleri ve enum'lar
+
+#### Position.java
+- **Sorumluluk:** 3D konum bilgisi (latitude, longitude, altitude)
+- **Özellikler:**
+  - Haversine formülü ile yatay mesafe hesaplama
+  - Dikey mesafe hesaplama
+  - 3D mesafe hesaplama
+  - Timestamp desteği
+- **Kullanım:** Tüm konum tabanlı işlemler için temel sınıf
+
+#### Vehicle.java
+- **Sorumluluk:** VTOL araç modeli
+- **Özellikler:**
+  - 3D konum takibi
+  - Hız ve yön yönetimi
+  - Yakıt seviyesi takibi
+  - Acil durum modu
+  - Otomasyon seviyesi desteği
+- **Validasyonlar:**
+  - Hız negatif olamaz
+  - Hız maksimum hızı aşamaz
+  - Yükseklik maksimum yüksekliği aşamaz
+  - Yakıt seviyesi 0-100 arasında
+
+#### Route.java
+- **Sorumluluk:** Uçuş rotası tanımları
+- **Özellikler:**
+  - Waypoint listesi
+  - Rota uzunluğu hesaplama
+  - Hız limiti ve yükseklik kısıtlamaları
+  - Rotaya yakınlık kontrolü
+- **Kullanım:** Uçuş planlaması ve rota takibi
+
+#### Enum'lar
+- **VehicleType:** DRONE, HELICOPTER, AIR_TAXI, CARGO_DRONE
+- **VehicleStatus:** IDLE, IN_FLIGHT, LANDING, EMERGENCY, MAINTENANCE
+- **AutomationLevel:** MANUAL, SEMI_AUTOMATED, FULLY_AUTOMATED
+
+---
+
+### 2. Map Paketi (`com.airtraffic.map`)
+
+**Amaç:** Harita ve coğrafi veri yönetimi
+
+#### CityMap.java
+- **Sorumluluk:** Şehir hava sahası modeli
+- **Özellikler:**
+  - Şehir sınırları (min/max lat/lon)
+  - Güvenlik kontrolü (isPositionSafe)
+  - Güvenli geçiş yüksekliği hesaplama
+  - Engel ve yasak bölge yönetimi
+- **İlişkiler:**
+  - RouteNetwork (rota ağı)
+  - Obstacle[] (engeller)
+  - RestrictedZone[] (yasak bölgeler)
+
+#### RouteNetwork.java
+- **Sorumluluk:** Rota ağı yönetimi
+- **Özellikler:**
+  - Ana caddeler (mainStreets)
+  - Yan sokaklar (sideStreets)
+  - Rota ekleme/çıkarma
+
+#### Obstacle.java
+- **Sorumluluk:** Engeller (binalar, köprüler, vb.)
+- **Özellikler:**
+  - 3D konum ve boyutlar
+  - Konum içerme kontrolü (contains)
+  - ObstacleType enum desteği
+
+#### RestrictedZone.java
+- **Sorumluluk:** Yasak bölgeler
+- **Özellikler:**
+  - Bölge tanımları
+  - Konum içerme kontrolü
+  - RestrictedZoneType enum desteği
+
+---
+
+### 3. Rules Paketi (`com.airtraffic.rules`)
+
+**Amaç:** Trafik kuralı yönetimi ve uygulaması
+
+#### TrafficRuleEngine.java
+- **Sorumluluk:** Kural motoru - tüm kuralları yönetir ve uygular
+- **Özellikler:**
+  - Kural ekleme/çıkarma
+  - İhlal kontrolü (checkViolations)
+  - Uyarı kontrolü (checkWarnings)
+  - Öncelik bazlı kural sıralama
+  - Varsayılan kurallar (initializeDefaultRules)
+- **Varsayılan Kurallar:**
+  - Ana cadde hız limiti: 60 km/h (16.67 m/s)
+  - Sokak hız limiti: 40 km/h (11.11 m/s)
+  - Giriş/çıkış kuralları (yüksek öncelik)
+
+#### TrafficRule.java (Abstract)
+- **Sorumluluk:** Temel kural sınıfı
+- **Özellikler:**
+  - Kural ID, adı, önceliği
+  - isApplicable() - Kural uygulanabilir mi?
+  - isViolated() - Kural ihlal edildi mi?
+  - RuleType enum desteği
+
+#### SpeedLimitRule.java
+- **Sorumluluk:** Hız limiti kuralları
+- **Özellikler:**
+  - Maksimum hız tanımlama
+  - Hız ihlali kontrolü
+  - Uyarı eşiği kontrolü (isWarningNeeded)
+
+#### EntryExitRule.java
+- **Sorumluluk:** Giriş/çıkış kuralları
+- **Özellikler:**
+  - Trafiğe giriş kontrolü
+  - Trafikten çıkış kontrolü
+
+---
+
+### 4. Control Paketi (`com.airtraffic.control`)
+
+**Amaç:** Merkezi kontrol ve koordinasyon
+
+#### TrafficControlCenter.java
+- **Sorumluluk:** Merkezi trafik kontrol sistemi (Singleton)
+- **Özellikler:**
+  - Singleton pattern
+  - Aktif araç yönetimi (ConcurrentHashMap)
+  - Uçuş izni yönetimi
+  - Baz istasyonu yönetimi
+  - Şehir haritası yükleme
+  - Kural motoru entegrasyonu
+- **Thread Safety:** ConcurrentHashMap kullanımı
+
+#### BaseStation.java
+- **Sorumluluk:** Baz istasyonu - araçlarla iletişim
+- **Özellikler:**
+  - Kapsama yarıçapı (varsayılan: 5km)
+  - Araç bağlantı yönetimi
+  - Kapsama alanı kontrolü (isInCoverage)
+
+#### FlightAuthorization.java
+- **Sorumluluk:** Uçuş izni yönetimi
+- **Özellikler:**
+  - İzin onaylama/reddetme
+  - Geçerlilik süresi kontrolü
+  - AuthorizationStatus enum desteği
+- **Durumlar:** PENDING, APPROVED, REJECTED, EXPIRED
+
+---
+
+## 🎨 Tasarım Kararları
+
+### 1. Singleton Pattern
+- **TrafficControlCenter:** Sistemde tek bir kontrol merkezi olmalı
+- **Neden:** Merkezi koordinasyon için gerekli
+
+### 2. Immutability
+- **Position, Route:** Waypoint listeleri defensive copy döndürür
+- **Neden:** Veri bütünlüğü ve thread safety
+
+### 3. Validation
+- **Vehicle:** Hız, yükseklik, yakıt seviyesi validasyonları
+- **Route:** Waypoint null kontrolü, hız limiti negatif olamaz
+- **Neden:** Veri tutarlılığı ve güvenlik
+
+### 4. Enum Kullanımı
+- Tüm sabit değerler enum olarak tanımlanmış
+- **Neden:** Tip güvenliği ve kod okunabilirliği
+
+### 5. Haversine Formülü
+- **Position.horizontalDistanceTo():** Dünya yüzeyi mesafe hesaplama
+- **Neden:** Havacılık standartlarına uygun doğru mesafe hesaplama
+
+### 6. Thread Safety
+- **TrafficControlCenter:** ConcurrentHashMap kullanımı
+- **Neden:** Çoklu thread ortamında güvenli erişim
+
+---
+
+## 📐 Geliştirme Prensipleri
+
+### Dil Standartları
+- **Kod ve Ekran:** İngilizce (havacılık standartlarına uygun)
+- **İletişim:** Türkçe (düşünceleri en iyi şekilde aktarabilmek için)
+- **Yorumlar:** İngilizce (test yorumları dahil)
+
+### Geliştirme Yaklaşımı
+- **Agile Development:** İteratif geliştirme
+- **Test-Driven Development (TDD):** Test önce, kod sonra
+- **Her geliştirme sonrası testlerle doğrulama**
+- **Her işlemden önce onay alma**
+
+### Test Stratejisi
+- Her ünite için kapsamlı testler
+- Test kapsamı:
+  - Constructor testleri
+  - Getter/Setter testleri
+  - Business logic testleri
+  - Edge case testleri
+  - Exception/validation testleri
+  - Immutability testleri
+
+### Kod Standartları
+- Java naming conventions
+- Javadoc yorumları
+- Defensive programming
+- Null safety kontrolleri
+
+---
+
+## 📊 Mevcut Durum
+
+### Tamamlanan İşlemler
+
+#### ✅ Proje Kurulumu
+- Bağımsız proje oluşturuldu
+- Maven yapısı kuruldu
+- Package yapısı: `com.airtraffic`
+- 21 Java dosyası hazır
+
+#### ✅ Model Paketi
+- Position.java ✅
+- Vehicle.java ✅
+- Route.java ✅
+- Enum'lar ✅
+- **Testler:** 3 dosya, 53 test metodu ✅
+
+#### ✅ Map Paketi
+- CityMap.java ✅
+- RouteNetwork.java ✅
+- Obstacle.java ✅
+- RestrictedZone.java ✅
+- Enum'lar ✅
+- **Testler:** ❌ (Henüz yok)
+
+#### ✅ Rules Paketi
+- TrafficRuleEngine.java ✅
+- TrafficRule.java ✅
+- SpeedLimitRule.java ✅
+- EntryExitRule.java ✅
+- RuleType.java ✅
+- **Testler:** ❌ (Henüz yok)
+
+#### ✅ Control Paketi
+- TrafficControlCenter.java ✅
+- BaseStation.java ✅
+- FlightAuthorization.java ✅
+- AuthorizationStatus.java ✅
+- **Testler:** ❌ (Henüz yok)
+
+### Eksikler
+
+#### ❌ UI Paketi
+- AirTrafficMainWindow.java (eksik)
+- Harita görselleştirme
+- Araç listesi görüntüleme
+- Sistem durumu paneli
+
+#### ❌ Testler
+- Map paketi testleri
+- Rules paketi testleri
+- Control paketi testleri
+
+---
+
+## 🚀 Gelecek Planlar
+
+### Öncelik 1: Test Yapısı Devam
+- [ ] Map paketi testleri
+  - CityMapTest.java
+  - ObstacleTest.java
+  - RestrictedZoneTest.java
+  - RouteNetworkTest.java
+- [ ] Rules paketi testleri
+  - TrafficRuleEngineTest.java
+  - SpeedLimitRuleTest.java
+  - EntryExitRuleTest.java
+- [ ] Control paketi testleri
+  - TrafficControlCenterTest.java
+  - BaseStationTest.java
+  - FlightAuthorizationTest.java
+
+### Öncelik 2: UI Geliştirme
+- [ ] AirTrafficMainWindow.java
+- [ ] Harita görselleştirme bileşeni
+- [ ] Araç listesi görüntüleme
+- [ ] Sistem durumu paneli
+- [ ] Gerçek zamanlı güncelleme
+
+### Öncelik 3: Gelişmiş Özellikler
+- [ ] Çarpışma önleme sistemi
+- [ ] Dinamik yükseklik katmanları
+- [ ] Hava durumu entegrasyonu
+- [ ] Simülasyon modülü
+- [ ] Veri kalıcılığı (JSON/XML dosya yükleme/kaydetme)
+
+### Öncelik 4: Havacılık Standartları
+- [ ] ICAO standartları entegrasyonu
+- [ ] FAA uyumluluk kontrolleri
+- [ ] EASA U-Space uyumluluğu
+- [ ] ASTM UTM standartları
+
+### Öncelik 5: Performans ve Güvenilirlik
+- [ ] Yüksek kullanılabilirlik (HA) yapısı
+- [ ] Ölçeklenebilirlik iyileştirmeleri
+- [ ] Veri güvenliği
+- [ ] Loglama ve izleme
+
+---
+
+## 🔗 İlişkili Dosyalar
+
+- **CHAT_GECMISI.md:** Chat geçmişi ve önemli kararlar
+- **GELISTIRME_DURUMU.md:** Geliştirme durumu ve TODO listesi
+- **TEST_DURUMU.md:** Test durumu ve sonuçları
+- **README.md:** Proje genel bilgileri
+
+---
+
+## 📝 Önemli Notlar
+
+1. **Proje Bağımsızlığı:** Proje tamamen bağımsız, ProfilAppSolution ile hiçbir bağlantı yok
+2. **Workspace:** Cursor'da AirTrafficControlSystem workspace'i açık olmalı
+3. **Chat Geçmişi:** Workspace değiştiğinde chat geçmişine erişilemediği için CHAT_GECMISI.md ve bu dosya oluşturuldu
+4. **Context Dosyası:** Bu dosya, yeni chat oturumlarında proje durumunu anlamak için kullanılmalı
+
+---
+
+**Son Güncelleme:** Model paketi testleri tamamlandı, proje temizliği yapıldı
+
+
+
+
+
+
