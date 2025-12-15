@@ -1,5 +1,6 @@
 package com.airtraffic.map;
 
+import com.airtraffic.model.AltitudeLayer;
 import com.airtraffic.model.Position;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -353,6 +354,177 @@ class CityMapTest {
         
         assertTrue(emptyMap.isPositionSafe(testPosition), 
             "Position should be safe in empty city map with proper boundaries");
+    }
+
+    // ========== getLayerForAltitude Tests ==========
+
+    @Test
+    @DisplayName("Test getLayerForAltitude for LOW layer")
+    void testGetLayerForAltitudeLowLayer() {
+        cityMap.setMinLatitude(40.0);
+        cityMap.setMaxLatitude(42.0);
+        cityMap.setMinLongitude(28.0);
+        cityMap.setMaxLongitude(30.0);
+        
+        Position position = new Position(41.0082, 28.9784, 30.0); // 30m altitude
+        
+        AltitudeLayer layer = cityMap.getLayerForAltitude(position);
+        
+        assertEquals(AltitudeLayer.LAYER_1_LOW, layer, 
+            "Position at 30m should be in LOW layer");
+    }
+
+    @Test
+    @DisplayName("Test getLayerForAltitude for MEDIUM layer")
+    void testGetLayerForAltitudeMediumLayer() {
+        cityMap.setMinLatitude(40.0);
+        cityMap.setMaxLatitude(42.0);
+        cityMap.setMinLongitude(28.0);
+        cityMap.setMaxLongitude(30.0);
+        
+        Position position = new Position(41.0082, 28.9784, 90.0); // 90m altitude
+        
+        AltitudeLayer layer = cityMap.getLayerForAltitude(position);
+        
+        assertEquals(AltitudeLayer.LAYER_2_MEDIUM, layer, 
+            "Position at 90m should be in MEDIUM layer");
+    }
+
+    @Test
+    @DisplayName("Test getLayerForAltitude for HIGH layer")
+    void testGetLayerForAltitudeHighLayer() {
+        cityMap.setMinLatitude(40.0);
+        cityMap.setMaxLatitude(42.0);
+        cityMap.setMinLongitude(28.0);
+        cityMap.setMaxLongitude(30.0);
+        
+        Position position = new Position(41.0082, 28.9784, 150.0); // 150m altitude
+        
+        AltitudeLayer layer = cityMap.getLayerForAltitude(position);
+        
+        assertEquals(AltitudeLayer.LAYER_3_HIGH, layer, 
+            "Position at 150m should be in HIGH layer");
+    }
+
+    @Test
+    @DisplayName("Test getLayerForAltitude returns null for position outside boundaries")
+    void testGetLayerForAltitudeOutsideBoundaries() {
+        cityMap.setMinLatitude(40.5);
+        cityMap.setMaxLatitude(41.5);
+        cityMap.setMinLongitude(28.5);
+        cityMap.setMaxLongitude(29.5);
+        
+        Position position = new Position(40.0, 30.0, 100.0); // Outside boundaries
+        
+        AltitudeLayer layer = cityMap.getLayerForAltitude(position);
+        
+        assertNull(layer, "Position outside boundaries should return null");
+    }
+
+    @Test
+    @DisplayName("Test getLayerForAltitude returns null for position at obstacle")
+    void testGetLayerForAltitudeAtObstacle() {
+        cityMap.setMinLatitude(40.0);
+        cityMap.setMaxLatitude(42.0);
+        cityMap.setMinLongitude(28.0);
+        cityMap.setMaxLongitude(30.0);
+        
+        Position obstaclePosition = new Position(41.0082, 28.9784, 50.0);
+        Obstacle obstacle = new Obstacle("Test Building", ObstacleType.BUILDING, 
+            obstaclePosition, 50.0); // 50m high building
+        obstacle.setRadius(100.0);
+        cityMap.addObstacle(obstacle);
+        
+        // Position at obstacle (same location, altitude below obstacle top)
+        Position positionAtObstacle = new Position(41.0082, 28.9784, 80.0); // Below obstacle top (50+50=100m)
+        
+        AltitudeLayer layer = cityMap.getLayerForAltitude(positionAtObstacle);
+        
+        assertNull(layer, "Position at obstacle should return null");
+    }
+
+    @Test
+    @DisplayName("Test getLayerForAltitude returns layer for position above obstacle")
+    void testGetLayerForAltitudeAboveObstacle() {
+        cityMap.setMinLatitude(40.0);
+        cityMap.setMaxLatitude(42.0);
+        cityMap.setMinLongitude(28.0);
+        cityMap.setMaxLongitude(30.0);
+        
+        Position obstaclePosition = new Position(41.0082, 28.9784, 50.0);
+        Obstacle obstacle = new Obstacle("Test Building", ObstacleType.BUILDING, 
+            obstaclePosition, 50.0); // 50m high building (top at 100m)
+        obstacle.setRadius(100.0);
+        cityMap.addObstacle(obstacle);
+        
+        // Position above obstacle (same horizontal location, altitude above obstacle top)
+        Position positionAboveObstacle = new Position(41.0082, 28.9784, 110.0); // Above obstacle top
+        
+        AltitudeLayer layer = cityMap.getLayerForAltitude(positionAboveObstacle);
+        
+        assertEquals(AltitudeLayer.LAYER_2_MEDIUM, layer, 
+            "Position above obstacle should return appropriate layer");
+    }
+
+    @Test
+    @DisplayName("Test getLayerForAltitude returns null for position in restricted zone")
+    void testGetLayerForAltitudeInRestrictedZone() {
+        cityMap.setMinLatitude(40.0);
+        cityMap.setMaxLatitude(42.0);
+        cityMap.setMinLongitude(28.0);
+        cityMap.setMaxLongitude(30.0);
+        
+        RestrictedZone zone = new RestrictedZone("Test Zone", RestrictedZoneType.GOVERNMENT);
+        zone.setMinAltitude(0.0);
+        zone.setMaxAltitude(200.0);
+        zone.addBoundaryPoint(new Position(41.0050, 28.9750, 0.0));
+        zone.addBoundaryPoint(new Position(41.0100, 28.9750, 0.0));
+        zone.addBoundaryPoint(new Position(41.0100, 28.9800, 0.0));
+        zone.addBoundaryPoint(new Position(41.0050, 28.9800, 0.0));
+        cityMap.addRestrictedZone(zone);
+        
+        Position positionInZone = new Position(41.0075, 28.9775, 100.0);
+        
+        AltitudeLayer layer = cityMap.getLayerForAltitude(positionInZone);
+        
+        assertNull(layer, "Position in restricted zone should return null");
+    }
+
+    @Test
+    @DisplayName("Test getLayerForAltitude at exact layer boundaries")
+    void testGetLayerForAltitudeAtBoundaries() {
+        cityMap.setMinLatitude(40.0);
+        cityMap.setMaxLatitude(42.0);
+        cityMap.setMinLongitude(28.0);
+        cityMap.setMaxLongitude(30.0);
+        
+        // At LOW layer lower boundary
+        Position atLowMin = new Position(41.0082, 28.9784, 0.0);
+        assertEquals(AltitudeLayer.LAYER_1_LOW, cityMap.getLayerForAltitude(atLowMin),
+            "Position at 0m should be in LOW layer");
+        
+        // At LOW-MEDIUM boundary
+        Position atLowMax = new Position(41.0082, 28.9784, 60.0);
+        assertEquals(AltitudeLayer.LAYER_2_MEDIUM, cityMap.getLayerForAltitude(atLowMax),
+            "Position at 60m should be in MEDIUM layer");
+        
+        // At MEDIUM-HIGH boundary
+        Position atMediumMax = new Position(41.0082, 28.9784, 120.0);
+        assertEquals(AltitudeLayer.LAYER_3_HIGH, cityMap.getLayerForAltitude(atMediumMax),
+            "Position at 120m should be in HIGH layer");
+        
+        // At HIGH layer upper boundary (should return null as it's out of range)
+        Position atHighMax = new Position(41.0082, 28.9784, 180.0);
+        assertNull(cityMap.getLayerForAltitude(atHighMax),
+            "Position at 180m should return null (out of range)");
+    }
+
+    @Test
+    @DisplayName("Test getLayerForAltitude with null position")
+    void testGetLayerForAltitudeNullPosition() {
+        assertThrows(NullPointerException.class, () -> {
+            cityMap.getLayerForAltitude(null);
+        }, "Null position should throw NullPointerException");
     }
 }
 

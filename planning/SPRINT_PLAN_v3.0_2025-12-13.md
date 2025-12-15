@@ -1,9 +1,9 @@
 # Urban Air Traffic Control System - Sprint Planlama
 
 **Proje:** UrbanAirTrafficControlSystem  
-**Versiyon:** 4.0-SNAPSHOT  
+**Versiyon:** 3.0-SNAPSHOT  
 **Son Güncelleme:** 2025-12-13  
-**Plan Versiyonu:** v4.0
+**Plan Versiyonu:** v3.0
 
 ---
 
@@ -163,174 +163,6 @@
 
 ---
 
-## 🎯 Sprint 4: Gelişmiş Güvenlik ve Operasyonellik 🔄 DEVAM EDİYOR
-
-**Konu Başlığı:** Kontrol Merkezi Yazılımı - Dinamik Yükseklik Katmanları ve Veri Kalıcılığı  
-**Tarih:** 2025-12-13 - [Devam Ediyor]  
-**Sprint Hedefi:** Yükseklik katmanları sistemi ve veri kalıcılığı özellikleri geliştirilecek  
-**Durum:** 🔄 Devam Ediyor (Faz 1 Tamamlandı ✅)
-
-### Sprint Backlog
-
-| PBI | User Story | Tahmini Süre | Durum | Atanan |
-|-----|-----------|--------------|-------|--------|
-| US-3.2 (Faz 1) | Dinamik Yükseklik Katmanları - Temel Katmanlar | 5 gün | ✅ Tamamlandı | - |
-| US-3.2 (Faz 2) | Yol Bazlı Katman Organizasyonu | [Planlanıyor] | ⏳ Planlandı | - |
-| US-3.5 | Veri Kalıcılığı (JSON/XML) | 4 gün | ⏳ Planlandı | - |
-
-**Toplam Tahmini Süre:** 9 gün (Faz 1: 5 gün tamamlandı)  
-**Sprint Kapasitesi:** 10 gün  
-**Tamamlanan Süre:** 5 gün  
-**Velocity:** 5 gün (Faz 1 tamamlandı)
-
-### Sprint 4 Teknik Detaylar
-
-#### US-3.2: Dinamik Yükseklik Katmanları (Faz 1 - Temel Katmanlar)
-
-**Amaç:** Hava sahasını dikey katmanlara bölerek trafik organizasyonunu ve güvenliği artırmak.
-
-**Yapılacaklar:**
-1. **AltitudeLayer Model/Enum Oluşturma**
-   - `AltitudeLayer.java` enum/model sınıfı
-   - Katman tanımları:
-     - **LAYER_1 (Low Altitude):** 0-60m - Teslimat dronları, alçak irtifa trafiği
-     - **LAYER_2 (Medium Altitude):** 60-120m - Şehir içi yolcu dronları, normal trafik
-     - **LAYER_3 (High Altitude):** 120-180m - Acil durum araçları, öncelikli trafik
-   - Her katman için özellikler:
-     - Minimum/Maksimum yükseklik
-     - Hız limiti
-     - İzin gereksinimleri
-     - Araç tipi kısıtlamaları
-
-2. **CityMap Entegrasyonu**
-   - `CityMap` sınıfına katman yönetimi ekleme
-   - `getLayerForAltitude(double altitude)` metodu
-   - `getSafePassageAltitude()` metodunu katman bilgisiyle güncelleme
-   - Engelleri (binalar, hastaneler) göz önünde bulundurarak katman yüksekliklerini dinamik hesaplama
-
-3. **Vehicle Entegrasyonu**
-   - `Vehicle` sınıfına `getCurrentLayer()` metodu ekleme
-   - Katman değişikliği tespiti ve uyarı sistemi
-
-4. **CollisionDetectionService Entegrasyonu**
-   - Çarpışma kontrolünde katman bilgisini kullanma
-   - Aynı katmandaki araçlar için daha sıkı kontrol
-   - Farklı katmanlardaki araçlar için gevşetilmiş kontrol (dikey mesafe yeterliyse)
-
-5. **ICAOStandardsCompliance Entegrasyonu**
-   - Katman bazlı ayrım standartları kontrolü
-   - Katman kurallarına uyumluluk kontrolü
-
-6. **UI Güncellemeleri (Opsiyonel)**
-   - Harita görselleştirmesinde katman bilgisini gösterme
-   - Sistem durumu panelinde katman istatistikleri
-
-**Test Gereksinimleri:**
-- AltitudeLayer testleri (katman hesaplama, sınır kontrolleri)
-- CityMap katman entegrasyonu testleri
-- Vehicle katman hesaplama testleri
-- CollisionDetectionService katman entegrasyonu testleri
-- ICAOStandardsCompliance katman entegrasyonu testleri
-
-**Beklenen Test Sayısı:** ~30-40 yeni test
-
-#### US-3.5: Veri Kalıcılığı (JSON/XML)
-
-**Amaç:** Sistem durumunu (harita, araçlar, ayarlar) dosyaya kaydetme ve yükleme özelliği.
-
-**Yapılacaklar:**
-1. **PersistenceService Oluşturma**
-   - `PersistenceService.java` servis sınıfı
-   - JSON formatında kaydetme/yükleme (Gson kullanarak)
-   - XML formatında kaydetme/yükleme (opsiyonel, gelecek sprint)
-
-2. **Model Serialization**
-   - `CityMap` serialization desteği
-   - `Vehicle` serialization desteği
-   - `TrafficControlCenter` state serialization
-   - `BaseStation` serialization
-   - `Route` serialization
-
-3. **TrafficControlCenter Entegrasyonu**
-   - `saveState(String filePath)` metodu
-   - `loadState(String filePath)` metodu
-   - Hata yönetimi (dosya bulunamadı, format hatası vb.)
-
-4. **UI Entegrasyonu**
-   - Menüye "Kaydet" ve "Yükle" seçenekleri ekleme
-   - Dosya seçici dialog'ları
-
-**Test Gereksinimleri:**
-- PersistenceService testleri (kaydetme/yükleme)
-- Serialization/Deserialization testleri
-- Hata durumu testleri (geçersiz dosya, eksik veri vb.)
-
-**Beklenen Test Sayısı:** ~20-25 yeni test
-
-### Definition of Done
-
-**Faz 1 (Temel Katmanlar):**
-- [x] Kod yazıldı ve commit edildi (US-3.2 Faz 1)
-- [x] Testler yazıldı ve geçti (~35 yeni test)
-- [x] Dokümantasyon güncellendi (SISTEM_KRITERLERI.md, PROJE_CONTEXT.md, GELISTIRME_DURUMU.md, CHAT_GECMISI.md)
-- [x] Uygulama çalıştırıldı ve özellikler doğrulandı
-- [x] Katman sistemi çarpışma kontrolünde kullanılıyor
-- [x] Katman sistemi ICAO standartları kontrolünde kullanılıyor
-
-**Faz 2 ve US-3.5:**
-- [ ] Yol bazlı katman organizasyonu (Faz 2)
-- [ ] Tek yönlü trafik organizasyonu (Faz 2)
-- [ ] Kesişen yollar ve dönüş kuralları (Faz 2)
-- [ ] Veri kalıcılığı çalışıyor (kaydetme/yükleme) (US-3.5)
-
-### Sprint Review Kriterleri
-
-**Faz 1 (Temel Katmanlar) - ✅ TAMAMLANDI:**
-- [x] Yükseklik katmanları tanımlanmış ve çalışıyor (3 katman: 0-60m, 60-120m, 120-180m)
-- [x] Araçlar için katman hesaplama yapılıyor
-- [x] Çarpışma kontrolünde katman bilgisi kullanılıyor
-- [x] Engeller (binalar, hastaneler) katman hesaplamasında göz önünde bulunduruluyor
-- [x] ICAO standartları kontrolünde katman bilgisi kullanılıyor
-- [x] Tüm testler geçiyor
-
-**Faz 2 ve US-3.5:**
-- [ ] Yol bazlı katman organizasyonu çalışıyor
-- [ ] Tek yönlü trafik organizasyonu çalışıyor
-- [ ] Kesişen yollar ve dönüş kuralları çalışıyor
-- [ ] Sistem durumu dosyaya kaydedilebiliyor (JSON formatında)
-- [ ] Sistem durumu dosyadan yüklenebiliyor (JSON formatında)
-
-### Sprint 4 Notları
-
-**Faz 1 (Temel Katmanlar) - ✅ TAMAMLANDI:**
-- [x] AltitudeLayer enum/model oluşturuldu (LAYER_1_LOW, LAYER_2_MEDIUM, LAYER_3_HIGH)
-- [x] CityMap katman yönetimi entegre edildi (`getLayerForAltitude()` metodu)
-- [x] Vehicle katman hesaplama eklendi (`getCurrentLayer()` metodu)
-- [x] CollisionDetectionService katman entegrasyonu yapıldı (risk skoru azaltma mekanizması)
-- [x] ICAOStandardsCompliance katman entegrasyonu yapıldı (katman bazlı separation kontrolleri)
-- [x] ~35 yeni test yazıldı ve geçti
-- [x] Uygulama çalıştırıldı ve doğrulandı
-- [x] Konsol çıktısında katman bilgileri gösteriliyor
-
-**Faz 2 (Yol Bazlı Organizasyon) - ⏳ PLANLANDI:**
-- [ ] Yol segmenti bazlı katman organizasyonu
-- [ ] Gidiş/geliş yönleri için ayrı katmanlar
-- [ ] Tek yönlü trafik organizasyonu
-- [ ] Kesişen yollar ve dönüş kuralları
-- [ ] Gerçekçi şehir haritası entegrasyonu
-
-**US-3.5 (Veri Kalıcılığı) - ⏳ PLANLANDI:**
-- [ ] PersistenceService oluşturuldu
-- [ ] JSON serialization/deserialization tamamlandı
-- [ ] UI menü güncellemeleri yapıldı
-
-**Gözlemler:**
-- Yol bazlı katman organizasyonu ihtiyacı tespit edildi (GELECEK_GELISTIRMELER.md'ye kaydedildi)
-- Tek yönlü trafik organizasyonu gereksinimi belirlendi
-- Gerçekçi şehir haritası ihtiyacı tespit edildi
-
----
-
 ## 📊 Sprint Metrikleri
 
 ### Velocity Tracking
@@ -340,10 +172,9 @@
 | Sprint 1 | 10 gün | 10 gün | 10 gün | ✅ Tamamlandı - Tüm user story'ler başarıyla tamamlandı |
 | Sprint 2 | 10 gün | 10 gün | 10 gün | ✅ Tamamlandı - Performans optimizasyonları ve gerçek zamanlı güncelleme |
 | Sprint 3 | 10 gün | 10 gün | 10 gün | ✅ Tamamlandı - Çarpışma önleme sistemi ve ICAO standartları entegrasyonu |
-| Sprint 4 | 9 gün | 0 gün | - | ⏳ Planlandı - Dinamik yükseklik katmanları ve veri kalıcılığı |
 
 **Hedef Velocity:** 8-10 gün/sprint  
-**Ortalama Velocity:** 10 gün/sprint (Sprint 1, Sprint 2, Sprint 3)
+**Ortalama Velocity:** 10 gün/sprint (Sprint 1, Sprint 2)
 
 ---
 
@@ -378,7 +209,6 @@
 
 | Versiyon | Tarih | Değişiklikler |
 |----------|-------|---------------|
-| v4.0 | 2025-12-13 | Sprint 4 planlandı - Dinamik yükseklik katmanları ve veri kalıcılığı |
 | v3.0 | 2025-12-13 | Sprint 3 tamamlandı - Çarpışma önleme sistemi ve ICAO standartları entegrasyonu |
 | v2.0 | 2025-12-13 | Sprint 1 tamamlandı, Sprint 2 güncellendi (performans optimizasyonu odaklı), Sprint 3 planlandı |
 | v1.0 | 2025-12-11 | İlk sprint planı oluşturuldu |
@@ -388,3 +218,7 @@
 ---
 
 **Not:** Bu sprint planı, her sprint sonunda güncellenecektir. Yeni sprint'ler eklendikçe bu dosya revize edilecektir.
+
+
+
+

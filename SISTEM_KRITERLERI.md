@@ -797,6 +797,52 @@ EntryExitRule.checkViolation(vehicle, position)
 - ICAO Annex 11: Air Traffic Services
 - EASA U-Space Regulation (EU) 2021/664
 
+### 10. Dinamik Yükseklik Katmanları Kriterleri (Sprint 4 - Faz 1)
+
+**Kriter:**
+- Hava sahası dikey katmanlara bölünmelidir
+- Her katman için minimum/maksimum yükseklik tanımlanmalıdır
+- Araçların mevcut katmanları hesaplanabilmelidir
+- Çarpışma kontrolünde katman bilgisi kullanılmalıdır
+- ICAO standartları kontrolünde katman bilgisi dikkate alınmalıdır
+
+**Katman Tanımları:**
+- **LAYER_1_LOW:** 0-60m - Teslimat dronları, alçak irtifa trafiği
+  - Önerilen hız limiti: 15 m/s
+- **LAYER_2_MEDIUM:** 60-120m - Şehir içi yolcu dronları, normal trafik
+  - Önerilen hız limiti: 25 m/s
+- **LAYER_3_HIGH:** 120-180m - Acil durum araçları, öncelikli trafik
+  - Önerilen hız limiti: 35 m/s
+
+**Katman Hesaplama:**
+- `AltitudeLayer.fromAltitude(double altitude)` - Yükseklikten katman hesaplama
+- `CityMap.getLayerForAltitude(Position position)` - Konum için katman hesaplama (engeller ve yasak bölgeler dikkate alınarak)
+- `Vehicle.getCurrentLayer(CityMap cityMap)` - Aracın mevcut katmanını hesaplama
+
+**Güvenlik Kontrolleri:**
+- Engeller (binalar, hastaneler) katman hesaplamasında göz önünde bulundurulmalıdır
+- Yasak bölgeler katman hesaplamasında göz önünde bulundurulmalıdır
+- Güvenli olmayan konumlar için null döndürülmelidir
+
+**Çarpışma Kontrolü Entegrasyonu:**
+- Farklı katmanlardaki araçlar için risk skoru azaltılmalıdır:
+  - 100m+ dikey mesafe: Risk yok sayılmalı
+  - 60-100m dikey mesafe: Risk skoru %70 azaltılmalı
+  - 60m altı dikey mesafe: Risk skoru %50 azaltılmalı
+- `CollisionDetectionService.calculateCollisionRisk(v1, v2, cityMap)` - Katman bilgisi ile çarpışma riski hesaplama
+
+**ICAO Standartları Entegrasyonu:**
+- Farklı katmanlardaki araçlar için 60m minimum dikey mesafe kabul edilmelidir
+- `ICAOStandardsCompliance.checkSeparationStandards(v1, v2, cityMap)` - Katman bilgisi ile separation kontrolü
+- `ICAOStandardsCompliance.checkFlightRulesCompliance(vehicle, cityMap)` - Katman ve yasak bölge kontrolü
+
+**Kullanım Senaryoları:**
+- `AltitudeLayer.fromAltitude(altitude)` - Yükseklikten katman belirleme
+- `cityMap.getLayerForAltitude(position)` - Konum için katman belirleme
+- `vehicle.getCurrentLayer(cityMap)` - Aracın katmanını belirleme
+- `collisionService.calculateCollisionRisk(v1, v2, cityMap)` - Katman dikkate alınarak çarpışma riski hesaplama
+- `icaoCompliance.checkSeparationStandards(v1, v2, cityMap)` - Katman dikkate alınarak separation kontrolü
+
 ---
 
 ## 🛫 Havacılık Standartları Uyumluluğu
@@ -824,8 +870,8 @@ Bu dokümantasyon, sistem geliştikçe güncellenecektir:
 3. **Test sonuçlarına göre:** Performans kriterleri revize edilecek
 4. **Kullanıcı geri bildirimlerine göre:** Kullanım kriterleri iyileştirilecek
 
-**Son Güncelleme:** 2025-12-13 (Sprint 3 tamamlandı)  
-**Sonraki Güncelleme:** Sprint 4 sonrası
+**Son Güncelleme:** 2025-12-13 (Sprint 4 Faz 1 tamamlandı)  
+**Sonraki Güncelleme:** Sprint 4 Faz 2 sonrası
 
 ---
 

@@ -3,6 +3,7 @@ package com.airtraffic.map;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.airtraffic.model.AltitudeLayer;
 import com.airtraffic.model.Position;
 
 /**
@@ -81,6 +82,28 @@ public class CityMap {
         }
 
         return maxObstacleHeight + 10.0; // 10m güvenlik payı
+    }
+
+    /**
+     * Belirli bir konum için uygun yükseklik katmanını döndürür.
+     * Engeller, yasak bölgeler ve sınırlar dikkate alınır.
+     * 
+     * @param position Kontrol edilecek konum
+     * @return Uygun AltitudeLayer veya null (konum güvenli değilse veya yükseklik aralık dışındaysa)
+     * @throws NullPointerException position null ise
+     */
+    public AltitudeLayer getLayerForAltitude(Position position) {
+        if (position == null) {
+            throw new NullPointerException("Position cannot be null");
+        }
+
+        // Önce konumun güvenli olup olmadığını kontrol et
+        if (!isPositionSafe(position)) {
+            return null; // Konum güvenli değilse (engel içinde, yasak bölgede veya sınırlar dışında)
+        }
+
+        // Güvenliyse, yüksekliğe göre uygun katmanı döndür
+        return AltitudeLayer.fromAltitude(position.getAltitude());
     }
 
     /**

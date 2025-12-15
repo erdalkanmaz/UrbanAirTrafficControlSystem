@@ -1,5 +1,6 @@
 package com.airtraffic.control;
 
+import com.airtraffic.map.CityMap;
 import com.airtraffic.model.*;
 import com.airtraffic.spatial.Quadtree;
 
@@ -41,6 +42,18 @@ public class CollisionDetectionService {
      * @return Çarpışma riskleri listesi
      */
     public List<CollisionRisk> checkCollisionRisks(Vehicle vehicle, List<Vehicle> allVehicles, Quadtree vehicleIndex) {
+        return checkCollisionRisks(vehicle, allVehicles, vehicleIndex, null);
+    }
+
+    /**
+     * Belirli bir araç için çarpışma risklerini kontrol eder (yükseklik katmanı desteği ile)
+     * @param vehicle Kontrol edilecek araç
+     * @param allVehicles Tüm aktif araçlar listesi
+     * @param vehicleIndex Quadtree spatial index (opsiyonel, performans için)
+     * @param cityMap Şehir haritası (yükseklik katmanı kontrolü için, opsiyonel)
+     * @return Çarpışma riskleri listesi
+     */
+    public List<CollisionRisk> checkCollisionRisks(Vehicle vehicle, List<Vehicle> allVehicles, Quadtree vehicleIndex, CityMap cityMap) {
         if (vehicle == null || vehicle.getPosition() == null) {
             throw new IllegalArgumentException("Vehicle and position cannot be null");
         }
@@ -56,7 +69,7 @@ public class CollisionDetectionService {
                 continue; // Kendisi ile karşılaştırma
             }
             
-            CollisionRisk risk = calculateCollisionRisk(vehicle, otherVehicle);
+            CollisionRisk risk = calculateCollisionRisk(vehicle, otherVehicle, cityMap);
             if (risk != null && risk.getRiskScore() > 0.0) {
                 risks.add(risk);
             }
@@ -72,12 +85,56 @@ public class CollisionDetectionService {
      * @return Çarpışma riski (risk yoksa null)
      */
     public CollisionRisk calculateCollisionRisk(Vehicle vehicle1, Vehicle vehicle2) {
+        return calculateCollisionRisk(vehicle1, vehicle2, null);
+    }
+
+    /**
+     * İki araç arasındaki çarpışma riskini hesaplar (yükseklik katmanı desteği ile)
+     * @param vehicle1 İlk araç
+     * @param vehicle2 İkinci araç
+     * @param cityMap Şehir haritası (yükseklik katmanı kontrolü için, opsiyonel)
+     * @return Çarpışma riski (risk yoksa null)
+     */
+    public CollisionRisk calculateCollisionRisk(Vehicle vehicle1, Vehicle vehicle2, CityMap cityMap) {
         if (vehicle1 == null || vehicle2 == null) {
             throw new IllegalArgumentException("Vehicles cannot be null");
         }
         
         if (vehicle1.getPosition() == null || vehicle2.getPosition() == null) {
             return null; // Konum bilgisi yoksa risk hesaplanamaz
+        }
+        
+        // Yükseklik katmanı kontrolü (CityMap varsa)
+        if (cityMap != null) {
+            AltitudeLayer layer1 = vehicle1.getCurrentLayer(cityMap);
+            AltitudeLayer layer2 = vehicle2.getCurrentLayer(cityMap);
+            
+            // Eğer araçlar farklı katmanlardaysa, riski azalt veya yok say
+            if (layer1 != null && layer2 != null && !layer1.equals(layer2)) {
+                // Farklı katmanlardaki araçlar arasında minimum mesafe katmanlar arası mesafeden kaynaklanır
+                // LOW: 0-60m, MEDIUM: 60-120m, HIGH: 120-180m
+                // Katmanlar arası minimum mesafe en az 60m (LOW-MEDIUM) veya 60m (MEDIUM-HIGH)
+                Position pos1 = vehicle1.getPosition();
+                Position pos2 = vehicle2.getPosition();
+                double verticalDistance = Math.abs(pos1.getAltitude() - pos2.getAltitude());
+                
+                // Katmanlar arası minimum mesafe kontrolü
+                if (verticalDistance >= 60.0) {
+                    // Yeterli dikey mesafe varsa, risk yok sayılabilir veya çok düşük olmalı
+                    double horizontalDistance = pos1.horizontalDistanceTo(pos2);
+                    
+                    // Çok büyük dikey mesafe varsa (örn. LOW-HIGH arası 120m), riski tamamen yok say
+                    if (verticalDistance >= 100.0) {
+                        return null; // Çok büyük dikey mesafe, risk yok
+                    }
+                    
+                    // Orta dikey mesafe varsa (60-100m), yatay mesafe de yeterliyse risk yok
+                    if (horizontalDistance > MIN_HORIZONTAL_SEPARATION * 2) {
+                        return null; // Yeterli mesafe var, risk yok
+                    }
+                    // Yatay mesafe yakınsa, risk skorunu azaltarak devam et (calculateRiskScore'da işlenecek)
+                }
+            }
         }
         
         Position pos1 = vehicle1.getPosition();
@@ -101,8 +158,8 @@ public class CollisionDetectionService {
             }
         }
         
-        // Risk skoru hesapla
-        double riskScore = calculateRiskScore(vehicle1, vehicle2, horizontalDistance, verticalDistance, totalDistance);
+        // Risk skoru hesapla (CityMap varsa katman faktörünü dikkate al)
+        double riskScore = calculateRiskScore(vehicle1, vehicle2, horizontalDistance, verticalDistance, totalDistance, cityMap);
         
         // Risk seviyesi belirle
         RiskLevel riskLevel = determineRiskLevel(riskScore, violatesHorizontalSeparation, violatesVerticalSeparation);
@@ -147,21 +204,51 @@ public class CollisionDetectionService {
      * Risk skoru hesaplar (0.0 - 1.0)
      */
     private double calculateRiskScore(Vehicle v1, Vehicle v2, double horizontalDist, double verticalDist, double totalDist) {
+        return calculateRiskScore(v1, v2, horizontalDist, verticalDist, totalDist, null);
+    }
+
+    /**
+     * Risk skoru hesaplar (0.0 - 1.0) - yükseklik katmanı desteği ile
+     */
+    private double calculateRiskScore(Vehicle v1, Vehicle v2, double horizontalDist, double verticalDist, double totalDist, CityMap cityMap) {
         double score = 0.0;
+        
+        // Yükseklik katmanı faktörü (CityMap varsa)
+        double layerFactor = 1.0; // Varsayılan: katman faktörü yok
+        if (cityMap != null) {
+            AltitudeLayer layer1 = v1.getCurrentLayer(cityMap);
+            AltitudeLayer layer2 = v2.getCurrentLayer(cityMap);
+            
+            if (layer1 != null && layer2 != null && !layer1.equals(layer2)) {
+                // Farklı katmanlardaki araçlar için risk skorunu azalt
+                // Katmanlar arası minimum mesafe (60m) göz önüne alınarak
+                double verticalDistForLayers = Math.abs(v1.getPosition().getAltitude() - v2.getPosition().getAltitude());
+                if (verticalDistForLayers >= 100.0) {
+                    // Çok büyük dikey mesafe (örn. LOW-HIGH arası 120m), risk skorunu %90 azalt
+                    layerFactor = 0.1;
+                } else if (verticalDistForLayers >= 60.0) {
+                    // Yeterli dikey mesafe varsa, risk skorunu %70 azalt
+                    layerFactor = 0.3;
+                } else {
+                    // Dikey mesafe yetersizse, risk skorunu %50 azalt
+                    layerFactor = 0.5;
+                }
+            }
+        }
         
         // Mesafe faktörü (daha yakın = daha yüksek risk)
         double distanceFactor = 1.0 - Math.min(totalDist / COLLISION_CHECK_RADIUS, 1.0);
-        score += distanceFactor * 0.4; // %40 ağırlık
+        score += distanceFactor * 0.4 * layerFactor; // %40 ağırlık, katman faktörü ile çarp
         
         // Minimum mesafe ihlali
         if (horizontalDist < MIN_HORIZONTAL_SEPARATION) {
             double violationFactor = 1.0 - (horizontalDist / MIN_HORIZONTAL_SEPARATION);
-            score += violationFactor * 0.3; // %30 ağırlık
+            score += violationFactor * 0.3 * layerFactor; // %30 ağırlık, katman faktörü ile çarp
         }
         
         if (verticalDist < MIN_VERTICAL_SEPARATION) {
             double violationFactor = 1.0 - (verticalDist / MIN_VERTICAL_SEPARATION);
-            score += violationFactor * 0.2; // %20 ağırlık
+            score += violationFactor * 0.2 * layerFactor; // %20 ağırlık, katman faktörü ile çarp
         }
         
         // Hız faktörü (daha hızlı = daha yüksek risk)
@@ -169,11 +256,11 @@ public class CollisionDetectionService {
         double maxSpeed = Math.max(v1.getMaxSpeed() > 0 ? v1.getMaxSpeed() : 50.0, 
                                    v2.getMaxSpeed() > 0 ? v2.getMaxSpeed() : 50.0);
         double speedFactor = Math.min(relativeSpeed / maxSpeed, 1.0);
-        score += speedFactor * 0.1; // %10 ağırlık
+        score += speedFactor * 0.1 * layerFactor; // %10 ağırlık, katman faktörü ile çarp
         
         // Gelecek çarpışma riski
         double futureRisk = predictFutureCollisionRisk(v1, v2);
-        score += futureRisk * 0.3; // %30 ağırlık
+        score += futureRisk * 0.3 * layerFactor; // %30 ağırlık, katman faktörü ile çarp
         
         return Math.min(score, 1.0); // Maksimum 1.0
     }
@@ -307,4 +394,8 @@ public class CollisionDetectionService {
         return MIN_VERTICAL_SEPARATION;
     }
 }
+
+
+
+
 

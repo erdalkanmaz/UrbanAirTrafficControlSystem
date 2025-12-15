@@ -1,5 +1,7 @@
 package com.airtraffic.standards;
 
+import com.airtraffic.map.CityMap;
+import com.airtraffic.model.AltitudeLayer;
 import com.airtraffic.model.Position;
 import com.airtraffic.model.Vehicle;
 import com.airtraffic.model.VehicleStatus;
@@ -225,6 +227,139 @@ class ICAOStandardsComplianceTest {
     void testGetCommunicationRange() {
         double range = ICAOStandardsCompliance.getCommunicationRange();
         assertEquals(5000.0, range, 0.001, "Communication range should be 5000.0 meters");
+    }
+
+    // ========== Altitude Layer Integration Tests ==========
+
+    @Test
+    @DisplayName("Test checkSeparationStandards with CityMap - vehicles in different layers should be compliant")
+    void testCheckSeparationStandardsDifferentLayers() {
+        CityMap cityMap = new CityMap("Test City");
+        cityMap.setMinLatitude(40.0);
+        cityMap.setMaxLatitude(42.0);
+        cityMap.setMinLongitude(28.0);
+        cityMap.setMaxLongitude(30.0);
+        
+        // Vehicle 1 in LOW layer (30m)
+        Position pos1 = new Position(41.0082, 28.9784, 30.0);
+        Vehicle v1 = new Vehicle(VehicleType.CARGO, pos1);
+        
+        // Vehicle 2 in MEDIUM layer (90m) - same horizontal position
+        Position pos2 = new Position(41.0082, 28.9784, 90.0);
+        Vehicle v2 = new Vehicle(VehicleType.PASSENGER, pos2);
+        
+        // Without CityMap - should detect violation (same horizontal position, vertical < 10m separation)
+        ComplianceResult resultWithoutMap = compliance.checkSeparationStandards(v1, v2);
+        assertFalse(resultWithoutMap.isCompliant(), 
+            "Should detect violation without layer consideration");
+        
+        // With CityMap - should be compliant (different layers provide sufficient separation)
+        ComplianceResult resultWithMap = compliance.checkSeparationStandards(v1, v2, cityMap);
+        assertTrue(resultWithMap.isCompliant(), 
+            "Should be compliant when vehicles are in different layers");
+    }
+
+    @Test
+    @DisplayName("Test checkSeparationStandards with CityMap - vehicles in same layer should follow normal rules")
+    void testCheckSeparationStandardsSameLayer() {
+        CityMap cityMap = new CityMap("Test City");
+        cityMap.setMinLatitude(40.0);
+        cityMap.setMaxLatitude(42.0);
+        cityMap.setMinLongitude(28.0);
+        cityMap.setMaxLongitude(30.0);
+        
+        // Both vehicles in MEDIUM layer (90m and 95m) - too close vertically
+        Position pos1 = new Position(41.0082, 28.9784, 90.0);
+        Vehicle v1 = new Vehicle(VehicleType.CARGO, pos1);
+        
+        Position pos2 = new Position(41.0082, 28.9784, 95.0); // Same horizontal, 5m vertical difference
+        Vehicle v2 = new Vehicle(VehicleType.PASSENGER, pos2);
+        
+        ComplianceResult result = compliance.checkSeparationStandards(v1, v2, cityMap);
+        assertFalse(result.isCompliant(), 
+            "Should detect violation when vehicles are in same layer and too close");
+    }
+
+    @Test
+    @DisplayName("Test checkSeparationStandards with CityMap - null CityMap should work as before")
+    void testCheckSeparationStandardsNullCityMap() {
+        Position samePos = new Position(41.0082, 28.9784, 100.0);
+        Vehicle v2 = new Vehicle(VehicleType.CARGO, samePos);
+        
+        // Should work without CityMap (backward compatibility)
+        ComplianceResult result = compliance.checkSeparationStandards(vehicle1, v2, null);
+        assertFalse(result.isCompliant(), "Should work without CityMap");
+    }
+
+    @Test
+    @DisplayName("Test checkSeparationStandards with CityMap - LOW and HIGH layers")
+    void testCheckSeparationStandardsLowAndHighLayers() {
+        CityMap cityMap = new CityMap("Test City");
+        cityMap.setMinLatitude(40.0);
+        cityMap.setMaxLatitude(42.0);
+        cityMap.setMinLongitude(28.0);
+        cityMap.setMaxLongitude(30.0);
+        
+        // Vehicle 1 in LOW layer (30m)
+        Position pos1 = new Position(41.0082, 28.9784, 30.0);
+        Vehicle v1 = new Vehicle(VehicleType.CARGO, pos1);
+        
+        // Vehicle 2 in HIGH layer (150m) - same horizontal position
+        Position pos2 = new Position(41.0082, 28.9784, 150.0);
+        Vehicle v2 = new Vehicle(VehicleType.EMERGENCY, pos2);
+        
+        ComplianceResult result = compliance.checkSeparationStandards(v1, v2, cityMap);
+        assertTrue(result.isCompliant(), 
+            "Should be compliant when vehicles are in LOW and HIGH layers (120m separation)");
+    }
+
+    @Test
+    @DisplayName("Test checkFlightRulesCompliance with CityMap - vehicle should be in appropriate layer")
+    void testCheckFlightRulesComplianceWithCityMap() {
+        CityMap cityMap = new CityMap("Test City");
+        cityMap.setMinLatitude(40.0);
+        cityMap.setMaxLatitude(42.0);
+        cityMap.setMinLongitude(28.0);
+        cityMap.setMaxLongitude(30.0);
+        
+        // Vehicle in MEDIUM layer (90m)
+        Position pos = new Position(41.0082, 28.9784, 90.0);
+        Vehicle vehicle = new Vehicle(VehicleType.PASSENGER, pos);
+        vehicle.setStatus(VehicleStatus.IN_FLIGHT);
+        
+        ComplianceResult result = compliance.checkFlightRulesCompliance(vehicle, cityMap);
+        assertTrue(result.isCompliant(), 
+            "Should be compliant when vehicle is in appropriate layer");
+    }
+
+    @Test
+    @DisplayName("Test checkFlightRulesCompliance with CityMap - vehicle in restricted zone")
+    void testCheckFlightRulesComplianceRestrictedZone() {
+        CityMap cityMap = new CityMap("Test City");
+        cityMap.setMinLatitude(40.0);
+        cityMap.setMaxLatitude(42.0);
+        cityMap.setMinLongitude(28.0);
+        cityMap.setMaxLongitude(30.0);
+        
+        // Add restricted zone
+        com.airtraffic.map.RestrictedZone zone = new com.airtraffic.map.RestrictedZone(
+            "Test Zone", com.airtraffic.map.RestrictedZoneType.GOVERNMENT);
+        zone.setMinAltitude(0.0);
+        zone.setMaxAltitude(200.0);
+        zone.addBoundaryPoint(new Position(41.0050, 28.9750, 0.0));
+        zone.addBoundaryPoint(new Position(41.0100, 28.9750, 0.0));
+        zone.addBoundaryPoint(new Position(41.0100, 28.9800, 0.0));
+        zone.addBoundaryPoint(new Position(41.0050, 28.9800, 0.0));
+        cityMap.addRestrictedZone(zone);
+        
+        // Vehicle in restricted zone
+        Position pos = new Position(41.0075, 28.9775, 100.0);
+        Vehicle vehicle = new Vehicle(VehicleType.PASSENGER, pos);
+        vehicle.setStatus(VehicleStatus.IN_FLIGHT);
+        
+        ComplianceResult result = compliance.checkFlightRulesCompliance(vehicle, cityMap);
+        assertFalse(result.isCompliant(), 
+            "Should not be compliant when vehicle is in restricted zone");
     }
 }
 

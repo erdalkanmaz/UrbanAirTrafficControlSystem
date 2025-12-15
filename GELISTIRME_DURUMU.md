@@ -112,13 +112,30 @@
 - ✅ Testler (1 dosya, 18 test)
   - ✅ `ICAOStandardsComplianceTest.java` (18 test)
 
+### 12. Dinamik Yükseklik Katmanları ✅ TAMAMLANDI (Sprint 4 - Faz 1)
+- ✅ `AltitudeLayer.java` - Yükseklik katmanları enum (LAYER_1_LOW, LAYER_2_MEDIUM, LAYER_3_HIGH)
+- ✅ CityMap entegrasyonu - `getLayerForAltitude()` metodu
+- ✅ Vehicle entegrasyonu - `getCurrentLayer()` metodu
+- ✅ CollisionDetectionService entegrasyonu - Katman bazlı risk analizi
+- ✅ ICAOStandardsCompliance entegrasyonu - Katman bazlı separation kontrolleri
+- ✅ Katman bazlı risk skoru azaltma mekanizması
+- ✅ Testler (5 dosya, ~35 yeni test)
+  - ✅ `AltitudeLayerTest.java` (yeni)
+  - ✅ `CityMapTest.java` (yeni testler eklendi)
+  - ✅ `VehicleTest.java` (yeni testler eklendi)
+  - ✅ `CollisionDetectionServiceTest.java` (yeni testler eklendi)
+  - ✅ `ICAOStandardsComplianceTest.java` (yeni testler eklendi)
+
 ---
 
 ## 📋 Sonraki Adımlar (TODO)
 
 ### Öncelik 1: Gelişmiş Özellikler (Sprint 4)
-- [ ] Çarpışma önleme sistemi geliştirmeleri
-- [ ] Dinamik yükseklik katmanları
+- [x] Dinamik yükseklik katmanları (Faz 1 - Temel katmanlar tamamlandı ✅)
+- [ ] Yol bazlı katman organizasyonu (Faz 2 - Planlanıyor)
+- [ ] Tek yönlü trafik organizasyonu (Faz 2 - Planlanıyor)
+- [ ] Kesişen yollar ve dönüş kuralları (Faz 2 - Planlanıyor)
+- [ ] Veri kalıcılığı (JSON/XML) (US-3.5 - Planlanıyor)
 - [ ] Hava durumu entegrasyonu
 
 ### Öncelik 2: Gelişmiş Özellikler

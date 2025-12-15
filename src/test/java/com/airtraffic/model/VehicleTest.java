@@ -1,5 +1,10 @@
 package com.airtraffic.model;
 
+import com.airtraffic.map.CityMap;
+import com.airtraffic.map.Obstacle;
+import com.airtraffic.map.ObstacleType;
+import com.airtraffic.map.RestrictedZone;
+import com.airtraffic.map.RestrictedZoneType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -289,6 +294,179 @@ class VehicleTest {
         assertTrue(str.contains("IN_FLIGHT"), "toString should contain status");
         // toString format: "Vehicle[id=VEH-001, type=CARGO, status=IN_FLIGHT, pos=Position(...), speed=30.00 m/s]"
         assertTrue(str.contains("30.00") || str.contains("speed=30"), "toString should contain velocity (actual: " + str + ")");
+    }
+
+    // ========== getCurrentLayer Tests ==========
+
+    @Test
+    @DisplayName("Test getCurrentLayer for LOW layer")
+    void testGetCurrentLayerLowLayer() {
+        CityMap cityMap = new CityMap("Test City");
+        cityMap.setMinLatitude(40.0);
+        cityMap.setMaxLatitude(42.0);
+        cityMap.setMinLongitude(28.0);
+        cityMap.setMaxLongitude(30.0);
+        
+        Position lowPosition = new Position(41.0082, 28.9784, 30.0); // 30m altitude
+        Vehicle lowVehicle = new Vehicle(VehicleType.CARGO, lowPosition);
+        
+        AltitudeLayer layer = lowVehicle.getCurrentLayer(cityMap);
+        
+        assertEquals(AltitudeLayer.LAYER_1_LOW, layer, 
+            "Vehicle at 30m should be in LOW layer");
+    }
+
+    @Test
+    @DisplayName("Test getCurrentLayer for MEDIUM layer")
+    void testGetCurrentLayerMediumLayer() {
+        CityMap cityMap = new CityMap("Test City");
+        cityMap.setMinLatitude(40.0);
+        cityMap.setMaxLatitude(42.0);
+        cityMap.setMinLongitude(28.0);
+        cityMap.setMaxLongitude(30.0);
+        
+        Position mediumPosition = new Position(41.0082, 28.9784, 90.0); // 90m altitude
+        Vehicle mediumVehicle = new Vehicle(VehicleType.PASSENGER, mediumPosition);
+        
+        AltitudeLayer layer = mediumVehicle.getCurrentLayer(cityMap);
+        
+        assertEquals(AltitudeLayer.LAYER_2_MEDIUM, layer, 
+            "Vehicle at 90m should be in MEDIUM layer");
+    }
+
+    @Test
+    @DisplayName("Test getCurrentLayer for HIGH layer")
+    void testGetCurrentLayerHighLayer() {
+        CityMap cityMap = new CityMap("Test City");
+        cityMap.setMinLatitude(40.0);
+        cityMap.setMaxLatitude(42.0);
+        cityMap.setMinLongitude(28.0);
+        cityMap.setMaxLongitude(30.0);
+        
+        Position highPosition = new Position(41.0082, 28.9784, 150.0); // 150m altitude
+        Vehicle highVehicle = new Vehicle(VehicleType.EMERGENCY, highPosition);
+        
+        AltitudeLayer layer = highVehicle.getCurrentLayer(cityMap);
+        
+        assertEquals(AltitudeLayer.LAYER_3_HIGH, layer, 
+            "Vehicle at 150m should be in HIGH layer");
+    }
+
+    @Test
+    @DisplayName("Test getCurrentLayer returns null for vehicle outside boundaries")
+    void testGetCurrentLayerOutsideBoundaries() {
+        CityMap cityMap = new CityMap("Test City");
+        cityMap.setMinLatitude(40.5);
+        cityMap.setMaxLatitude(41.5);
+        cityMap.setMinLongitude(28.5);
+        cityMap.setMaxLongitude(29.5);
+        
+        Position outsidePosition = new Position(40.0, 30.0, 100.0); // Outside boundaries
+        Vehicle outsideVehicle = new Vehicle(VehicleType.CARGO, outsidePosition);
+        
+        AltitudeLayer layer = outsideVehicle.getCurrentLayer(cityMap);
+        
+        assertNull(layer, "Vehicle outside boundaries should return null");
+    }
+
+    @Test
+    @DisplayName("Test getCurrentLayer returns null for vehicle at obstacle")
+    void testGetCurrentLayerAtObstacle() {
+        CityMap cityMap = new CityMap("Test City");
+        cityMap.setMinLatitude(40.0);
+        cityMap.setMaxLatitude(42.0);
+        cityMap.setMinLongitude(28.0);
+        cityMap.setMaxLongitude(30.0);
+        
+        Position obstaclePosition = new Position(41.0082, 28.9784, 50.0);
+        Obstacle obstacle = new Obstacle("Test Building", ObstacleType.BUILDING, 
+            obstaclePosition, 50.0); // 50m high building
+        obstacle.setRadius(100.0);
+        cityMap.addObstacle(obstacle);
+        
+        // Vehicle at obstacle (same location, altitude below obstacle top)
+        Position vehiclePosition = new Position(41.0082, 28.9784, 80.0); // Below obstacle top (50+50=100m)
+        Vehicle vehicleAtObstacle = new Vehicle(VehicleType.CARGO, vehiclePosition);
+        
+        AltitudeLayer layer = vehicleAtObstacle.getCurrentLayer(cityMap);
+        
+        assertNull(layer, "Vehicle at obstacle should return null");
+    }
+
+    @Test
+    @DisplayName("Test getCurrentLayer returns layer for vehicle above obstacle")
+    void testGetCurrentLayerAboveObstacle() {
+        CityMap cityMap = new CityMap("Test City");
+        cityMap.setMinLatitude(40.0);
+        cityMap.setMaxLatitude(42.0);
+        cityMap.setMinLongitude(28.0);
+        cityMap.setMaxLongitude(30.0);
+        
+        Position obstaclePosition = new Position(41.0082, 28.9784, 50.0);
+        Obstacle obstacle = new Obstacle("Test Building", ObstacleType.BUILDING, 
+            obstaclePosition, 50.0); // 50m high building (top at 100m)
+        obstacle.setRadius(100.0);
+        cityMap.addObstacle(obstacle);
+        
+        // Vehicle above obstacle (same horizontal location, altitude above obstacle top)
+        Position vehiclePosition = new Position(41.0082, 28.9784, 110.0); // Above obstacle top
+        Vehicle vehicleAboveObstacle = new Vehicle(VehicleType.PASSENGER, vehiclePosition);
+        
+        AltitudeLayer layer = vehicleAboveObstacle.getCurrentLayer(cityMap);
+        
+        assertEquals(AltitudeLayer.LAYER_2_MEDIUM, layer, 
+            "Vehicle above obstacle should return appropriate layer");
+    }
+
+    @Test
+    @DisplayName("Test getCurrentLayer returns null for vehicle in restricted zone")
+    void testGetCurrentLayerInRestrictedZone() {
+        CityMap cityMap = new CityMap("Test City");
+        cityMap.setMinLatitude(40.0);
+        cityMap.setMaxLatitude(42.0);
+        cityMap.setMinLongitude(28.0);
+        cityMap.setMaxLongitude(30.0);
+        
+        RestrictedZone zone = new RestrictedZone("Test Zone", RestrictedZoneType.GOVERNMENT);
+        zone.setMinAltitude(0.0);
+        zone.setMaxAltitude(200.0);
+        zone.addBoundaryPoint(new Position(41.0050, 28.9750, 0.0));
+        zone.addBoundaryPoint(new Position(41.0100, 28.9750, 0.0));
+        zone.addBoundaryPoint(new Position(41.0100, 28.9800, 0.0));
+        zone.addBoundaryPoint(new Position(41.0050, 28.9800, 0.0));
+        cityMap.addRestrictedZone(zone);
+        
+        Position vehiclePosition = new Position(41.0075, 28.9775, 100.0);
+        Vehicle vehicleInZone = new Vehicle(VehicleType.CARGO, vehiclePosition);
+        
+        AltitudeLayer layer = vehicleInZone.getCurrentLayer(cityMap);
+        
+        assertNull(layer, "Vehicle in restricted zone should return null");
+    }
+
+    @Test
+    @DisplayName("Test getCurrentLayer with null CityMap")
+    void testGetCurrentLayerNullCityMap() {
+        assertThrows(NullPointerException.class, () -> {
+            vehicle.getCurrentLayer(null);
+        }, "Null CityMap should throw NullPointerException");
+    }
+
+    @Test
+    @DisplayName("Test getCurrentLayer with null position")
+    void testGetCurrentLayerNullPosition() {
+        CityMap cityMap = new CityMap("Test City");
+        cityMap.setMinLatitude(40.0);
+        cityMap.setMaxLatitude(42.0);
+        cityMap.setMinLongitude(28.0);
+        cityMap.setMaxLongitude(30.0);
+        
+        Vehicle vehicleWithNullPosition = new Vehicle();
+        vehicleWithNullPosition.setPosition(null);
+        
+        assertThrows(NullPointerException.class, () -> {
+            vehicleWithNullPosition.getCurrentLayer(cityMap);
+        }, "Vehicle with null position should throw NullPointerException");
     }
 }
 

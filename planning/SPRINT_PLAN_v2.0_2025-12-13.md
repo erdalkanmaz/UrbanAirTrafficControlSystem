@@ -125,3 +125,8 @@
 
 **Not:** Bu sprint planı, her sprint sonunda güncellenecektir. Yeni sprint'ler eklendikçe bu dosya revize edilecektir.
 
+
+
+
+
+

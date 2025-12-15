@@ -1,6 +1,8 @@
 package com.airtraffic.standards;
 
 import com.airtraffic.control.CollisionDetectionService;
+import com.airtraffic.map.CityMap;
+import com.airtraffic.model.AltitudeLayer;
 import com.airtraffic.model.Position;
 import com.airtraffic.model.Vehicle;
 import com.airtraffic.model.VehicleStatus;
@@ -39,6 +41,17 @@ public class ICAOStandardsCompliance {
      * @return Uyumluluk sonucu
      */
     public ComplianceResult checkSeparationStandards(Vehicle vehicle1, Vehicle vehicle2) {
+        return checkSeparationStandards(vehicle1, vehicle2, null);
+    }
+
+    /**
+     * İki araç arasındaki minimum separation standartlarını kontrol eder (yükseklik katmanı desteği ile)
+     * @param vehicle1 İlk araç
+     * @param vehicle2 İkinci araç
+     * @param cityMap Şehir haritası (yükseklik katmanı kontrolü için, opsiyonel)
+     * @return Uyumluluk sonucu
+     */
+    public ComplianceResult checkSeparationStandards(Vehicle vehicle1, Vehicle vehicle2, CityMap cityMap) {
         ComplianceResult result = new ComplianceResult(true, STANDARD_NAME);
         
         if (vehicle1 == null || vehicle2 == null) {
@@ -57,6 +70,29 @@ public class ICAOStandardsCompliance {
         double horizontalDistance = pos1.horizontalDistanceTo(pos2);
         double verticalDistance = pos1.verticalDistanceTo(pos2);
         
+        // Yükseklik katmanı kontrolü (CityMap varsa)
+        if (cityMap != null) {
+            AltitudeLayer layer1 = vehicle1.getCurrentLayer(cityMap);
+            AltitudeLayer layer2 = vehicle2.getCurrentLayer(cityMap);
+            
+            // Eğer araçlar farklı katmanlardaysa, katmanlar arası minimum mesafe (60m) yeterli
+            if (layer1 != null && layer2 != null && !layer1.equals(layer2)) {
+                // Farklı katmanlardaki araçlar için minimum dikey mesafe 60m (katmanlar arası mesafe)
+                if (verticalDistance >= 60.0) {
+                    // Yeterli dikey mesafe var, separation standartlarına uygun
+                    return result; // Compliant
+                } else {
+                    // Dikey mesafe yetersiz, ancak katmanlar farklı olduğu için yatay mesafe kontrolü yapılmalı
+                    // Yatay mesafe yeterliyse, dikey mesafe ihlali tolere edilebilir
+                    if (horizontalDistance >= MIN_HORIZONTAL_SEPARATION * 2) {
+                        // Yeterli yatay mesafe var, katmanlar farklı olduğu için uyumlu sayılabilir
+                        return result; // Compliant
+                    }
+                }
+            }
+        }
+        
+        // Normal separation kontrolü (aynı katmanda veya CityMap yoksa)
         // Horizontal separation check
         if (horizontalDistance < MIN_HORIZONTAL_SEPARATION) {
             result.addViolation(String.format(
@@ -84,6 +120,16 @@ public class ICAOStandardsCompliance {
      * @return Uyumluluk sonucu
      */
     public ComplianceResult checkFlightRulesCompliance(Vehicle vehicle) {
+        return checkFlightRulesCompliance(vehicle, null);
+    }
+
+    /**
+     * Uçuş kuralları uyumluluğunu kontrol eder (VFR/IFR) - yükseklik katmanı desteği ile
+     * @param vehicle Kontrol edilecek araç
+     * @param cityMap Şehir haritası (yükseklik katmanı ve yasak bölge kontrolü için, opsiyonel)
+     * @return Uyumluluk sonucu
+     */
+    public ComplianceResult checkFlightRulesCompliance(Vehicle vehicle, CityMap cityMap) {
         ComplianceResult result = new ComplianceResult(true, STANDARD_NAME);
         
         if (vehicle == null) {
@@ -99,6 +145,22 @@ public class ICAOStandardsCompliance {
         if (vehicle.getPosition() == null) {
             result.addViolation("Vehicle position is null - cannot verify flight rules compliance");
             return result;
+        }
+        
+        // Yükseklik katmanı ve yasak bölge kontrolü (CityMap varsa)
+        if (cityMap != null) {
+            // Konumun güvenli olup olmadığını kontrol et (engeller, yasak bölgeler)
+            if (!cityMap.isPositionSafe(vehicle.getPosition())) {
+                result.addViolation("Vehicle is in an unsafe position (obstacle, restricted zone, or out of bounds) - violates flight rules");
+                result.addRecommendation("Adjust flight path to avoid obstacles and restricted zones");
+            }
+            
+            // Yükseklik katmanı kontrolü
+            AltitudeLayer currentLayer = vehicle.getCurrentLayer(cityMap);
+            if (currentLayer == null) {
+                result.addViolation("Vehicle is not in a valid altitude layer - violates flight rules");
+                result.addRecommendation("Adjust altitude to enter a valid flight layer");
+            }
         }
         
         // Status check - vehicle should be in flight or preparing
@@ -198,4 +260,9 @@ public class ICAOStandardsCompliance {
         return COMMUNICATION_RANGE;
     }
 }
+
+
+
+
+
 

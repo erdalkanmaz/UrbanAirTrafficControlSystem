@@ -1,5 +1,7 @@
 package com.airtraffic.model;
 
+import com.airtraffic.map.CityMap;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -78,6 +80,25 @@ public class Vehicle {
     public void enterEmergencyMode() {
         this.status = VehicleStatus.EMERGENCY;
         this.lastUpdateTime = LocalDateTime.now();
+    }
+
+    /**
+     * Aracın mevcut konumuna göre uygun yükseklik katmanını döndürür.
+     * Engeller, yasak bölgeler ve sınırlar dikkate alınır.
+     * 
+     * @param cityMap Şehir haritası (engel, yasak bölge ve sınır bilgileri için gerekli)
+     * @return Uygun AltitudeLayer veya null (konum güvenli değilse veya yükseklik aralık dışındaysa)
+     * @throws NullPointerException cityMap veya position null ise
+     */
+    public AltitudeLayer getCurrentLayer(CityMap cityMap) {
+        if (cityMap == null) {
+            throw new NullPointerException("CityMap cannot be null");
+        }
+        if (position == null) {
+            throw new NullPointerException("Vehicle position cannot be null");
+        }
+        
+        return cityMap.getLayerForAltitude(position);
     }
 
     // Getters and Setters

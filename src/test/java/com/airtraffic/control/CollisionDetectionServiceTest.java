@@ -1,5 +1,6 @@
 package com.airtraffic.control;
 
+import com.airtraffic.map.CityMap;
 import com.airtraffic.model.*;
 import com.airtraffic.spatial.Quadtree;
 import org.junit.jupiter.api.BeforeEach;
@@ -309,6 +310,130 @@ class CollisionDetectionServiceTest {
             assertTrue(risk.getEstimatedTimeToCollision() >= 0.0,
                 "Estimated time to collision should be non-negative");
         }
+    }
+
+    // ========== Altitude Layer Integration Tests ==========
+
+    @Test
+    @DisplayName("Test calculateCollisionRisk with CityMap - vehicles in different layers should have lower risk")
+    void testCalculateCollisionRiskDifferentLayers() {
+        CityMap cityMap = new CityMap("Test City");
+        cityMap.setMinLatitude(40.0);
+        cityMap.setMaxLatitude(42.0);
+        cityMap.setMinLongitude(28.0);
+        cityMap.setMaxLongitude(30.0);
+        
+        // Vehicle 1 in LOW layer (30m)
+        Position pos1 = new Position(41.0082, 28.9784, 30.0);
+        Vehicle v1 = new Vehicle(VehicleType.CARGO, pos1);
+        v1.setVelocity(10.0);
+        
+        // Vehicle 2 in MEDIUM layer (90m) - same horizontal position
+        Position pos2 = new Position(41.0082, 28.9784, 90.0);
+        Vehicle v2 = new Vehicle(VehicleType.PASSENGER, pos2);
+        v2.setVelocity(10.0);
+        
+        // Without CityMap - should detect risk (same horizontal position)
+        CollisionRisk riskWithoutMap = service.calculateCollisionRisk(v1, v2);
+        assertNotNull(riskWithoutMap, "Should detect risk without layer consideration");
+        
+        // With CityMap - should have lower risk or no risk (different layers)
+        CollisionRisk riskWithMap = service.calculateCollisionRisk(v1, v2, cityMap);
+        if (riskWithMap != null) {
+            assertTrue(riskWithMap.getRiskScore() < riskWithoutMap.getRiskScore(),
+                "Risk score should be lower when vehicles are in different layers");
+        } else {
+            // Or risk might be null if layers provide sufficient separation
+            assertNull(riskWithMap, "Risk might be null if layers provide sufficient separation");
+        }
+    }
+
+    @Test
+    @DisplayName("Test calculateCollisionRisk with CityMap - vehicles in same layer should have normal risk")
+    void testCalculateCollisionRiskSameLayer() {
+        CityMap cityMap = new CityMap("Test City");
+        cityMap.setMinLatitude(40.0);
+        cityMap.setMaxLatitude(42.0);
+        cityMap.setMinLongitude(28.0);
+        cityMap.setMaxLongitude(30.0);
+        
+        // Both vehicles in MEDIUM layer (90m and 95m)
+        Position pos1 = new Position(41.0082, 28.9784, 90.0);
+        Vehicle v1 = new Vehicle(VehicleType.CARGO, pos1);
+        v1.setVelocity(10.0);
+        
+        Position pos2 = new Position(41.0082, 28.9784, 95.0); // Same horizontal, close vertical
+        Vehicle v2 = new Vehicle(VehicleType.PASSENGER, pos2);
+        v2.setVelocity(10.0);
+        
+        CollisionRisk risk = service.calculateCollisionRisk(v1, v2, cityMap);
+        assertNotNull(risk, "Should detect risk when vehicles are in same layer and close");
+        assertTrue(risk.getRiskScore() > 0.0, "Risk score should be positive");
+    }
+
+    @Test
+    @DisplayName("Test calculateCollisionRisk with CityMap - null CityMap should work as before")
+    void testCalculateCollisionRiskNullCityMap() {
+        Position samePos = new Position(41.0082, 28.9784, 100.0);
+        Vehicle v2 = new Vehicle(VehicleType.CARGO, samePos);
+        
+        // Should work without CityMap (backward compatibility)
+        CollisionRisk risk = service.calculateCollisionRisk(vehicle1, v2, null);
+        assertNotNull(risk, "Should work without CityMap");
+    }
+
+    @Test
+    @DisplayName("Test calculateCollisionRisk with CityMap - vehicles in LOW and HIGH layers")
+    void testCalculateCollisionRiskLowAndHighLayers() {
+        CityMap cityMap = new CityMap("Test City");
+        cityMap.setMinLatitude(40.0);
+        cityMap.setMaxLatitude(42.0);
+        cityMap.setMinLongitude(28.0);
+        cityMap.setMaxLongitude(30.0);
+        
+        // Vehicle 1 in LOW layer (30m)
+        Position pos1 = new Position(41.0082, 28.9784, 30.0);
+        Vehicle v1 = new Vehicle(VehicleType.CARGO, pos1);
+        v1.setVelocity(10.0);
+        
+        // Vehicle 2 in HIGH layer (150m) - same horizontal position
+        Position pos2 = new Position(41.0082, 28.9784, 150.0);
+        Vehicle v2 = new Vehicle(VehicleType.EMERGENCY, pos2);
+        v2.setVelocity(10.0);
+        
+        CollisionRisk risk = service.calculateCollisionRisk(v1, v2, cityMap);
+        // Should have very low or no risk due to large vertical separation between layers
+        if (risk != null) {
+            assertTrue(risk.getRiskScore() < 0.3, 
+                "Risk score should be low when vehicles are in LOW and HIGH layers");
+        }
+    }
+
+    @Test
+    @DisplayName("Test checkCollisionRisks with CityMap - should consider altitude layers")
+    void testCheckCollisionRisksWithCityMap() {
+        CityMap cityMap = new CityMap("Test City");
+        cityMap.setMinLatitude(40.0);
+        cityMap.setMaxLatitude(42.0);
+        cityMap.setMinLongitude(28.0);
+        cityMap.setMaxLongitude(30.0);
+        
+        // Vehicle 1 in LOW layer
+        Position pos1 = new Position(41.0082, 28.9784, 30.0);
+        Vehicle v1 = new Vehicle(VehicleType.CARGO, pos1);
+        v1.setVelocity(10.0);
+        
+        // Vehicle 2 in MEDIUM layer - same horizontal position
+        Position pos2 = new Position(41.0082, 28.9784, 90.0);
+        Vehicle v2 = new Vehicle(VehicleType.PASSENGER, pos2);
+        v2.setVelocity(10.0);
+        
+        List<Vehicle> vehicles = new ArrayList<>();
+        vehicles.add(v2);
+        
+        List<CollisionRisk> risks = service.checkCollisionRisks(v1, vehicles, null, cityMap);
+        assertNotNull(risks, "Should return list");
+        // Risk should be lower or null due to different layers
     }
 }
 

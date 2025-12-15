@@ -376,6 +376,34 @@ public class AirTrafficMainWindow extends Application {
             java.util.List<com.airtraffic.model.CollisionRisk> criticalRisks = controlCenter.getCriticalCollisionRisks();
             System.out.println("Kritik çarpışma riskleri: " + criticalRisks.size());
             System.out.println();
+            
+            // Sprint 4 Test: Yükseklik Katmanları Kontrolü
+            System.out.println("=== SPRINT 4 TEST: Yükseklik Katmanları ===");
+            com.airtraffic.model.AltitudeLayer layer1 = vehicle1.getCurrentLayer(cityMap);
+            com.airtraffic.model.AltitudeLayer layer2 = vehicle2.getCurrentLayer(cityMap);
+            com.airtraffic.model.AltitudeLayer layer3 = vehicle3.getCurrentLayer(cityMap);
+            System.out.println("Araç 1 (" + vehicle1.getId().substring(0, 8) + "...) - Yükseklik: " + 
+                vehicle1.getPosition().getAltitude() + "m - Katman: " + layer1);
+            System.out.println("Araç 2 (" + vehicle2.getId().substring(0, 8) + "...) - Yükseklik: " + 
+                vehicle2.getPosition().getAltitude() + "m - Katman: " + layer2);
+            System.out.println("Araç 3 (" + vehicle3.getId().substring(0, 8) + "...) - Yükseklik: " + 
+                vehicle3.getPosition().getAltitude() + "m - Katman: " + layer3);
+            
+            // Farklı katmanlardaki araçlar için çarpışma kontrolü (CityMap ile)
+            if (layer1 != null && layer2 != null && !layer1.equals(layer2)) {
+                System.out.println("\nAraç 1 ve 2 farklı katmanlarda - çarpışma riski azaltılmış olmalı");
+                com.airtraffic.control.CollisionDetectionService collisionService = 
+                    new com.airtraffic.control.CollisionDetectionService();
+                com.airtraffic.model.CollisionRisk riskWithLayer = 
+                    collisionService.calculateCollisionRisk(vehicle1, vehicle2, cityMap);
+                if (riskWithLayer != null) {
+                    System.out.println("Katman dikkate alınarak risk skoru: " + 
+                        String.format("%.2f", riskWithLayer.getRiskScore()));
+                } else {
+                    System.out.println("Katman dikkate alınarak risk yok (farklı katmanlar yeterli mesafe sağlıyor)");
+                }
+            }
+            System.out.println();
         } catch (Exception e) {
             // Hata durumunda detaylı log
             System.err.println("Örnek araç ekleme hatası: " + e.getMessage());

@@ -701,6 +701,99 @@ Her sohbet oturumu sonunda aşağıdaki bilgiler kaydedilmelidir:
 
 ---
 
+### Oturum 7: Sprint 4 Faz 1 - Dinamik Yükseklik Katmanları Tamamlandı (2025-12-13)
+
+**Oturum Konusu:** Sprint 4 - US-3.2 Dinamik Yükseklik Katmanları (Faz 1) geliştirmesi
+
+**Yapılan İşler:**
+
+1. **AltitudeLayer Enum Oluşturuldu:**
+   - 3 katman tanımlandı: LAYER_1_LOW (0-60m), LAYER_2_MEDIUM (60-120m), LAYER_3_HIGH (120-180m)
+   - Her katman için min/max yükseklik ve önerilen hız limiti tanımlandı
+   - `fromAltitude()` metodu ile yükseklikten katman hesaplama eklendi
+   - Unit testleri yazıldı ve geçti (AltitudeLayerTest)
+
+2. **CityMap Entegrasyonu:**
+   - `getLayerForAltitude(Position position)` metodu eklendi
+   - Engeller ve yasak bölgeler dikkate alınarak katman hesaplama yapılıyor
+   - Güvenli olmayan konumlar için null döndürülüyor
+   - Unit testleri yazıldı ve geçti (CityMapTest - yeni testler)
+
+3. **Vehicle Entegrasyonu:**
+   - `getCurrentLayer(CityMap cityMap)` metodu eklendi
+   - Araçların mevcut katmanlarını hesaplama özelliği eklendi
+   - Null position ve CityMap kontrolü yapılıyor
+   - Unit testleri yazıldı ve geçti (VehicleTest - yeni testler)
+
+4. **CollisionDetectionService Entegrasyonu:**
+   - `calculateCollisionRisk()` metoduna CityMap parametresi eklendi (overload)
+   - `checkCollisionRisks()` metoduna CityMap parametresi eklendi (overload)
+   - Farklı katmanlardaki araçlar için risk skoru azaltma mekanizması eklendi:
+     - 100m+ dikey mesafe: Risk yok sayılıyor
+     - 60-100m dikey mesafe: Risk skoru %70 azaltılıyor
+     - 60m altı dikey mesafe: Risk skoru %50 azaltılıyor
+   - Katman faktörü risk skoru hesaplamasına entegre edildi
+   - Unit testleri yazıldı ve geçti (CollisionDetectionServiceTest - yeni testler)
+
+5. **ICAOStandardsCompliance Entegrasyonu:**
+   - `checkSeparationStandards()` metoduna CityMap parametresi eklendi (overload)
+   - `checkFlightRulesCompliance()` metoduna CityMap parametresi eklendi (overload)
+   - Farklı katmanlardaki araçlar için 60m minimum dikey mesafe kabul ediliyor
+   - Yasak bölge ve engel kontrolü eklendi
+   - Uçuş kuralları kontrolüne katman desteği eklendi
+   - Unit testleri yazıldı ve geçti (ICAOStandardsComplianceTest - yeni testler)
+
+6. **Uygulama Testi:**
+   - AirTrafficMainWindow'a Sprint 4 test çıktıları eklendi
+   - Konsol çıktısında yükseklik katmanları bilgisi gösteriliyor
+   - Uygulama başarıyla çalıştırıldı ve test edildi
+
+**Test Sonuçları:**
+- ✅ AltitudeLayerTest: Tüm testler geçti
+- ✅ CityMapTest: Yeni katman testleri eklendi ve geçti
+- ✅ VehicleTest: Yeni katman testleri eklendi ve geçti
+- ✅ CollisionDetectionServiceTest: Yeni katman entegrasyon testleri eklendi ve geçti
+- ✅ ICAOStandardsComplianceTest: Yeni katman entegrasyon testleri eklendi ve geçti
+- ✅ Toplam ~30-35 yeni test eklendi ve geçti
+
+**Kararlar:**
+
+1. **Faz 1 Tamamlandı:** Temel yükseklik katmanları sistemi tamamlandı
+2. **Geriye Uyumluluk:** Tüm yeni metodlar overload olarak eklendi, mevcut kod etkilenmedi
+3. **TDD Yaklaşımı:** Tüm geliştirmeler Test-Driven Development ile yapıldı
+
+**Gözlemler ve Gelecek Geliştirmeler:**
+
+Kullanıcı tarafından tespit edilen önemli gözlemler:
+
+1. **Yol Bazlı Katman Organizasyonu İhtiyacı:**
+   - Binlerce aracı aynı yol üzerinde, yolun gidiş ve geliş olarak kendi içinde katmanlara bölündüğünü düşünürsek, en fazla 20m'lik bir yükseklik içinde farklı yükseklik katmanlarına yerleştirmek pek mümkün değil
+   - Yol bazlı katman organizasyonu gerekiyor
+   - Her yol segmenti için gidiş ve geliş yönleri ayrı katmanlar olmalı
+
+2. **Tek Yönlü Trafik Organizasyonu:**
+   - Tek yönlü bir trafik olacağı için herhangi bir katman içinde tek bir yöne doğru trafikte bütün araçlar aynı seviyede yer almalı
+   - Ana yolda tüm araçlar aynı hız ve seviyede hareket etmeli
+   - Sadece kesişen ve farklı yükseklikteki yollara dönüş yapan araçlar farklı hız ve seviyelere geçmeli
+
+3. **Uygulama Haritası İhtiyacı:**
+   - Gerçekçi bir şehir haritası temin edilmeli
+   - Harita üzerinde yol ağı, engeller, yasak bölgeler detaylı olmalı
+
+**Sonraki Adımlar:**
+
+- [ ] Yol bazlı katman organizasyonu değerlendirmesi
+- [ ] Tek yönlü trafik organizasyonu tasarımı
+- [ ] Kesişen yollar ve dönüş kuralları tasarımı
+- [ ] Gerçekçi şehir haritası temin etme
+- [ ] Sprint 4 Faz 2 planlaması
+
+**Not:** Bu gözlemler `GELECEK_GELISTIRMELER.md` dosyasına kaydedildi. Gelecek oturumda bu gözlemler üzerinde fikir alışverişi yapılacak ve geliştirmeye devam edilecek.
+
+**Sonuç:** Sprint 4 Faz 1 başarıyla tamamlandı. Tüm yükseklik katmanları özellikleri entegre edildi ve test edildi. Uygulama çalıştırıldı ve doğrulandı.
+
+---
+
 
 
 
