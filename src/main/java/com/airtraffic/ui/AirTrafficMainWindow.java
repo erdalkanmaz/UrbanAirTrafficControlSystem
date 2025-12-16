@@ -13,11 +13,17 @@ import com.airtraffic.model.VehicleStatus;
 import com.airtraffic.model.VehicleType;
 import javafx.application.Application;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.layout.BorderPane;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+
+import java.io.File;
+import java.io.IOException;
 
 /**
  * Ana hava trafik kontrol sistemi penceresi
@@ -119,11 +125,21 @@ public class AirTrafficMainWindow extends Application {
         Menu fileMenu = new Menu("File");
         MenuItem loadMapItem = new MenuItem("Load Map");
         MenuItem saveMapItem = new MenuItem("Save Map");
+        MenuItem saveStateItem = new MenuItem("Save State...");
+        MenuItem loadStateItem = new MenuItem("Load State...");
         MenuItem exitItem = new MenuItem("Exit");
+        
+        // Save State action
+        saveStateItem.setOnAction(e -> handleSaveState());
+        
+        // Load State action
+        loadStateItem.setOnAction(e -> handleLoadState());
         
         exitItem.setOnAction(e -> primaryStage.close());
         
-        fileMenu.getItems().addAll(loadMapItem, saveMapItem, exitItem);
+        fileMenu.getItems().addAll(loadMapItem, saveMapItem, 
+            new SeparatorMenuItem(), saveStateItem, loadStateItem, 
+            new SeparatorMenuItem(), exitItem);
         
         // View Menüsü
         Menu viewMenu = new Menu("View");
@@ -408,6 +424,90 @@ public class AirTrafficMainWindow extends Application {
             // Hata durumunda detaylı log
             System.err.println("Örnek araç ekleme hatası: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Sistem durumunu kaydetme işlemini yönetir
+     */
+    private void handleSaveState() {
+        TrafficControlCenter controlCenter = TrafficControlCenter.getInstance();
+        
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Save System State");
+        fileChooser.getExtensionFilters().add(
+            new FileChooser.ExtensionFilter("JSON Files", "*.json")
+        );
+        fileChooser.getExtensionFilters().add(
+            new FileChooser.ExtensionFilter("All Files", "*.*")
+        );
+        
+        // Default dosya adı öner
+        fileChooser.setInitialFileName("airtraffic_state.json");
+        
+        File file = fileChooser.showSaveDialog(primaryStage);
+        if (file != null) {
+            try {
+                controlCenter.saveState(file.getAbsolutePath());
+                
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Save Successful");
+                alert.setHeaderText(null);
+                alert.setContentText("System state saved successfully to:\n" + file.getAbsolutePath());
+                alert.showAndWait();
+            } catch (IOException ex) {
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Save Error");
+                alert.setHeaderText("Failed to save system state");
+                alert.setContentText("Error: " + ex.getMessage());
+                alert.showAndWait();
+            }
+        }
+    }
+    
+    /**
+     * Sistem durumunu yükleme işlemini yönetir
+     */
+    private void handleLoadState() {
+        TrafficControlCenter controlCenter = TrafficControlCenter.getInstance();
+        
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Load System State");
+        fileChooser.getExtensionFilters().add(
+            new FileChooser.ExtensionFilter("JSON Files", "*.json")
+        );
+        fileChooser.getExtensionFilters().add(
+            new FileChooser.ExtensionFilter("All Files", "*.*")
+        );
+        
+        File file = fileChooser.showOpenDialog(primaryStage);
+        if (file != null) {
+            try {
+                controlCenter.loadState(file.getAbsolutePath());
+                
+                // UI bileşenlerini güncelle
+                if (mapVisualization != null && controlCenter.getCityMap() != null) {
+                    mapVisualization.setCityMap(controlCenter.getCityMap());
+                }
+                if (vehicleListView != null) {
+                    vehicleListView.refresh();
+                }
+                if (systemStatusPanel != null) {
+                    systemStatusPanel.refresh();
+                }
+                
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Load Successful");
+                alert.setHeaderText(null);
+                alert.setContentText("System state loaded successfully from:\n" + file.getAbsolutePath());
+                alert.showAndWait();
+            } catch (IOException ex) {
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Load Error");
+                alert.setHeaderText("Failed to load system state");
+                alert.setContentText("Error: " + ex.getMessage());
+                alert.showAndWait();
+            }
         }
     }
 }

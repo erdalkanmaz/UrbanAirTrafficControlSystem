@@ -1,11 +1,14 @@
 package com.airtraffic.map;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.airtraffic.model.Position;
 import com.airtraffic.model.Route;
+import com.airtraffic.model.RouteDirection;
 
 /**
  * Trafik yolu ağı - şehir içi hava trafik yolları
@@ -19,6 +22,10 @@ public class RouteNetwork {
     private double mainStreetAltitude;     // Ana cadde yüksekliği (metre)
     private double sideStreetAltitude;    // Sokak yüksekliği (metre)
     private double mainStreetConnectionOffset; // Sokakların ana caddeden bağlantı mesafesi (metre)
+    
+    // Segment yönetimi
+    private Map<String, List<RouteSegment>> routeSegments; // Route ID -> Segments listesi
+    private List<RouteSegment> allSegments; // Tüm segmentler
 
     public RouteNetwork() {
         this.mainStreets = new ArrayList<>();
@@ -28,6 +35,8 @@ public class RouteNetwork {
         this.mainStreetAltitude = 100.0;    // Varsayılan: 100m
         this.sideStreetAltitude = 75.0;     // Varsayılan: 75m
         this.mainStreetConnectionOffset = 25.0; // Varsayılan: 25m
+        this.routeSegments = new HashMap<>();
+        this.allSegments = new ArrayList<>();
     }
 
     public RouteNetwork(String cityName) {
@@ -186,6 +195,97 @@ public class RouteNetwork {
 
     public void setMainStreetConnectionOffset(double mainStreetConnectionOffset) {
         this.mainStreetConnectionOffset = mainStreetConnectionOffset;
+    }
+    
+    /**
+     * Rotayı segmentlere böler ve kaydeder
+     * @param route Segmentlere bölünecek rota
+     * @param segmentLength Her segmentin uzunluğu (metre)
+     * @param direction Segment yönü (FORWARD veya REVERSE)
+     * @param altitude Segment yüksekliği (metre)
+     * @param speedLimit Segment hız limiti (m/s)
+     * @return Oluşturulan segmentler listesi
+     */
+    public List<RouteSegment> createSegmentsForRoute(Route route, double segmentLength, 
+                                                      RouteDirection direction, 
+                                                      double altitude, double speedLimit) {
+        if (route == null) {
+            throw new IllegalArgumentException("Route cannot be null");
+        }
+        
+        List<RouteSegment> segments = route.createSegments(segmentLength, direction, altitude, speedLimit);
+        
+        // Segmentleri kaydet
+        routeSegments.put(route.getId(), segments);
+        allSegments.addAll(segments);
+        
+        return new ArrayList<>(segments);
+    }
+    
+    /**
+     * Belirli bir konuma en yakın segmenti bulur
+     * @param position Konum
+     * @param threshold Mesafe eşiği (metre)
+     * @return En yakın segment veya null
+     */
+    public RouteSegment findNearestSegment(Position position, double threshold) {
+        if (position == null) {
+            return null;
+        }
+        
+        RouteSegment nearest = null;
+        double minDistance = Double.MAX_VALUE;
+        
+        for (RouteSegment segment : allSegments) {
+            if (!segment.isActive()) {
+                continue;
+            }
+            
+            if (segment.isOnSegment(position, threshold)) {
+                // Segment üzerinde, mesafeyi hesapla
+                double distanceToStart = position.horizontalDistanceTo(segment.getStartPoint());
+                double distanceToEnd = position.horizontalDistanceTo(segment.getEndPoint());
+                double minSegmentDistance = Math.min(distanceToStart, distanceToEnd);
+                
+                if (minSegmentDistance < minDistance) {
+                    minDistance = minSegmentDistance;
+                    nearest = segment;
+                }
+            }
+        }
+        
+        return nearest;
+    }
+    
+    /**
+     * Belirli bir rotaya ait segmentleri döndürür
+     * @param routeId Rota ID
+     * @return Segmentler listesi
+     */
+    public List<RouteSegment> getSegmentsForRoute(String routeId) {
+        List<RouteSegment> segments = routeSegments.get(routeId);
+        return segments != null ? new ArrayList<>(segments) : new ArrayList<>();
+    }
+    
+    /**
+     * Tüm aktif segmentleri döndürür
+     * @return Aktif segmentler listesi
+     */
+    public List<RouteSegment> getAllActiveSegments() {
+        return allSegments.stream()
+                .filter(RouteSegment::isActive)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Belirli bir yöne ait segmentleri döndürür
+     * @param direction Yön (FORWARD veya REVERSE)
+     * @return Segmentler listesi
+     */
+    public List<RouteSegment> getSegmentsByDirection(RouteDirection direction) {
+        return allSegments.stream()
+                .filter(s -> s.isActive() && s.getDirection() == direction)
+                .collect(Collectors.toList());
     }
 }
 

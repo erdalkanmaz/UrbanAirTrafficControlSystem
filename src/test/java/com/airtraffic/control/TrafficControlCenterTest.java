@@ -8,7 +8,11 @@ import com.airtraffic.model.VehicleType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -486,6 +490,110 @@ class TrafficControlCenterTest {
         } else {
             assertTrue(true, "Authorization was rejected, cannot test position update");
         }
+    }
+
+    @Test
+    @DisplayName("Test saveState - valid file path")
+    void testSaveStateValidFilePath(@TempDir Path tempDir) throws IOException {
+        center.loadCityMap(cityMap);
+        center.addBaseStation(baseStation);
+        
+        FlightAuthorization auth = center.requestFlightAuthorization(
+            testVehicle, departurePosition, destinationPosition);
+        if (auth.getStatus() == com.airtraffic.control.AuthorizationStatus.APPROVED) {
+            center.registerVehicle(testVehicle);
+        }
+        
+        File testFile = tempDir.resolve("test_state.json").toFile();
+        String filePath = testFile.getAbsolutePath();
+        
+        center.saveState(filePath);
+        
+        assertTrue(testFile.exists());
+        assertTrue(testFile.length() > 0);
+    }
+
+    @Test
+    @DisplayName("Test loadState - valid file path")
+    void testLoadStateValidFilePath(@TempDir Path tempDir) throws IOException {
+        // Clear existing state first (singleton pattern)
+        center.getBaseStations().clear();
+        center.getActiveVehicles().clear();
+        
+        // Setup initial state
+        center.loadCityMap(cityMap);
+        center.addBaseStation(baseStation);
+        
+        FlightAuthorization auth = center.requestFlightAuthorization(
+            testVehicle, departurePosition, destinationPosition);
+        if (auth.getStatus() == com.airtraffic.control.AuthorizationStatus.APPROVED) {
+            center.registerVehicle(testVehicle);
+        }
+        
+        int savedBaseStationCount = center.getBaseStations().size();
+        int savedVehicleCount = center.getActiveVehicles().size();
+        
+        // Save state
+        File testFile = tempDir.resolve("test_state.json").toFile();
+        String filePath = testFile.getAbsolutePath();
+        center.saveState(filePath);
+        
+        // Clear state and load
+        center.getBaseStations().clear();
+        center.getActiveVehicles().clear();
+        center.loadState(filePath);
+        
+        // Verify loaded state
+        assertNotNull(center.getCityMap());
+        assertEquals("Istanbul", center.getCityMap().getCityName());
+        assertEquals(savedBaseStationCount, center.getBaseStations().size());
+        assertEquals(savedVehicleCount, center.getActiveVehicles().size());
+        assertTrue(center.getActiveVehicles().stream()
+            .anyMatch(v -> v.getId().equals(testVehicle.getId())));
+    }
+
+    @Test
+    @DisplayName("Test saveState and loadState - data integrity")
+    void testSaveAndLoadDataIntegrity(@TempDir Path tempDir) throws IOException {
+        // Setup initial state
+        center.loadCityMap(cityMap);
+        center.addBaseStation(baseStation);
+        
+        FlightAuthorization auth = center.requestFlightAuthorization(
+            testVehicle, departurePosition, destinationPosition);
+        if (auth.getStatus() == com.airtraffic.control.AuthorizationStatus.APPROVED) {
+            center.registerVehicle(testVehicle);
+        }
+        
+        String originalCenterId = center.getCenterId();
+        boolean originalOperational = center.isOperational();
+        
+        // Save state
+        File testFile = tempDir.resolve("test_state.json").toFile();
+        String filePath = testFile.getAbsolutePath();
+        center.saveState(filePath);
+        
+        // Create new center instance and load state
+        TrafficControlCenter newCenter = TrafficControlCenter.getInstance();
+        newCenter.loadState(filePath);
+        
+        // Verify data integrity
+        assertEquals(originalCenterId, newCenter.getCenterId());
+        assertEquals(originalOperational, newCenter.isOperational());
+        assertEquals(center.getCityMap().getCityName(), newCenter.getCityMap().getCityName());
+        assertEquals(center.getBaseStations().size(), newCenter.getBaseStations().size());
+        assertEquals(center.getActiveVehicles().size(), newCenter.getActiveVehicles().size());
+    }
+
+    @Test
+    @DisplayName("Test loadState - file not found throws exception")
+    void testLoadStateFileNotFound(@TempDir Path tempDir) {
+        File nonExistentFile = tempDir.resolve("non_existent.json").toFile();
+        String filePath = nonExistentFile.getAbsolutePath();
+        
+        assertThrows(IOException.class, () -> {
+            center.loadState(filePath);
+        });
     }
 }
 

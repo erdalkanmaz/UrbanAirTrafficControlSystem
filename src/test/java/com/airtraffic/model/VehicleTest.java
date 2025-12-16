@@ -5,11 +5,14 @@ import com.airtraffic.map.Obstacle;
 import com.airtraffic.map.ObstacleType;
 import com.airtraffic.map.RestrictedZone;
 import com.airtraffic.map.RestrictedZoneType;
+import com.airtraffic.map.RouteSegment;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -467,6 +470,49 @@ class VehicleTest {
         assertThrows(NullPointerException.class, () -> {
             vehicleWithNullPosition.getCurrentLayer(cityMap);
         }, "Vehicle with null position should throw NullPointerException");
+    }
+
+    @Test
+    @DisplayName("Test getCurrentSegment - initially null")
+    void testGetCurrentSegmentInitiallyNull() {
+        assertNull(vehicle.getCurrentSegment());
+    }
+
+    @Test
+    @DisplayName("Test setCurrentSegment and getCurrentSegment")
+    void testSetAndGetCurrentSegment() {
+        List<Position> waypoints = new ArrayList<>();
+        waypoints.add(new Position(41.0082, 28.9784, 100.0));
+        waypoints.add(new Position(41.0100, 28.9800, 100.0));
+        com.airtraffic.model.Route route = new com.airtraffic.model.Route("Test Route", waypoints);
+        
+        RouteSegment segment = new RouteSegment(route, 
+            new Position(41.0082, 28.9784, 100.0),
+            new Position(41.0100, 28.9800, 100.0),
+            RouteDirection.FORWARD, 100.0, 25.0);
+        
+        vehicle.setCurrentSegment(segment);
+        
+        assertEquals(segment, vehicle.getCurrentSegment());
+    }
+
+    @Test
+    @DisplayName("Test setCurrentSegment - null segment")
+    void testSetCurrentSegmentNull() {
+        List<Position> waypoints = new ArrayList<>();
+        waypoints.add(new Position(41.0082, 28.9784, 100.0));
+        waypoints.add(new Position(41.0100, 28.9800, 100.0));
+        com.airtraffic.model.Route route = new com.airtraffic.model.Route("Test Route", waypoints);
+        
+        RouteSegment segment = new RouteSegment(route, 
+            new Position(41.0082, 28.9784, 100.0),
+            new Position(41.0100, 28.9800, 100.0),
+            RouteDirection.FORWARD, 100.0, 25.0);
+        
+        vehicle.setCurrentSegment(segment);
+        vehicle.setCurrentSegment(null);
+        
+        assertNull(vehicle.getCurrentSegment());
     }
 }
 

@@ -2,7 +2,7 @@
 
 **Bu dosya, proje hakkında tüm kritik bilgileri içerir. Yeni bir chat oturumunda bu dosya okunarak proje durumu anlaşılabilir.**
 
-**Son Güncelleme:** 2025-12-13 (Sprint 4 Faz 1 tamamlandı)  
+**Son Güncelleme:** 2025-12-16 (Sprint 4 Faz 1 ve Faz 2 Temel Yapı tamamlandı)  
 **Versiyon:** 2.0-SNAPSHOT
 
 ---
@@ -144,9 +144,23 @@ AirTrafficMainWindow
 Vehicle
     ├── Position (3D konum)
     ├── Route (planlanan rota)
+    ├── RouteSegment (mevcut segment) [YENİ]
     ├── VehicleType (enum)
     ├── VehicleStatus (enum)
     └── AutomationLevel (enum)
+
+RouteNetwork
+    ├── Route[]
+    └── RouteSegment[] [YENİ]
+        ├── RouteDirection (enum) [YENİ]
+        ├── altitude (sabit yükseklik)
+        ├── speedLimit (hız limiti)
+        └── maxVehicles (kapasite)
+
+TrafficFlowService [YENİ]
+    ├── RouteNetwork
+    ├── CityMap
+    └── segmentVehicles (Map<String, List<String>>)
 
 Route
     └── Position[] (waypoints)
@@ -196,6 +210,7 @@ Route
 - **VehicleType:** DRONE, HELICOPTER, AIR_TAXI, CARGO_DRONE
 - **VehicleStatus:** IDLE, IN_FLIGHT, LANDING, EMERGENCY, MAINTENANCE
 - **AutomationLevel:** MANUAL, SEMI_AUTOMATED, FULLY_AUTOMATED
+- **RouteDirection:** FORWARD, REVERSE [YENİ]
 
 ---
 
@@ -221,6 +236,19 @@ Route
   - Ana caddeler (mainStreets)
   - Yan sokaklar (sideStreets)
   - Rota ekleme/çıkarma
+  - Segment yönetimi (createSegmentsForRoute, findNearestSegment) [YENİ]
+  - Yön bazlı segment filtreleme (getSegmentsByDirection) [YENİ]
+
+#### RouteSegment.java [YENİ]
+- **Sorumluluk:** Yol segmenti modeli
+- **Özellikler:**
+  - Başlangıç/bitiş noktaları
+  - Yön (FORWARD/REVERSE)
+  - Sabit yükseklik
+  - Hız limiti
+  - Maksimum araç kapasitesi
+  - Segment uzunluğu hesaplama
+  - Konum segment üzerinde mi kontrolü (isOnSegment)
 
 #### Obstacle.java
 - **Sorumluluk:** Engeller (binalar, köprüler, vb.)
@@ -238,7 +266,49 @@ Route
 
 ---
 
-### 3. Rules Paketi (`com.airtraffic.rules`)
+### 3. Control Paketi (`com.airtraffic.control`)
+
+**Amaç:** Merkezi kontrol ve trafik akışı yönetimi
+
+#### TrafficFlowService.java [YENİ]
+- **Sorumluluk:** Trafik akışı yönetimi servisi
+- **Özellikler:**
+  - Araç segmentini güncelleme (updateVehicleSegment)
+  - Segment kurallarına uyum kontrolü (checkSegmentCompliance)
+  - Segment araç sayısı takibi (getVehicleCountForSegment)
+  - Kapasite kontrolü (isSegmentAtCapacity)
+  - Segment bazlı araç dağılımı yönetimi
+- **Kullanım:** Segment bazlı trafik organizasyonu
+
+#### TrafficControlCenter.java
+- **Sorumluluk:** Merkezi kontrol sistemi (Singleton)
+- **Özellikler:**
+  - Araç kayıt/yönetimi
+  - Rota yönetimi
+  - Uçuş izni yönetimi
+  - Baz istasyonu yönetimi
+  - Quadtree spatial indexing
+  - Sistem durumu kaydetme/yükleme (saveState/loadState)
+
+#### CollisionDetectionService.java
+- **Sorumluluk:** Çarpışma tespiti ve yönetimi
+- **Özellikler:**
+  - Çarpışma riski hesaplama
+  - Katman bazlı risk skoru azaltma
+  - Gelecek konum tahmini
+  - Risk seviyesi belirleme (LOW, MEDIUM, HIGH, CRITICAL)
+
+#### ICAOStandardsCompliance.java
+- **Sorumluluk:** ICAO standartlarına uyumluluk kontrolü
+- **Özellikler:**
+  - Minimum separation standartları (50m yatay, 10m dikey)
+  - VFR uçuş kuralları kontrolü
+  - İletişim gereksinimleri kontrolü
+  - Katman bazlı separation kontrolleri
+
+---
+
+### 4. Rules Paketi (`com.airtraffic.rules`)
 
 **Amaç:** Trafik kuralı yönetimi ve uygulaması
 
@@ -281,6 +351,16 @@ Route
 ### 4. Control Paketi (`com.airtraffic.control`)
 
 **Amaç:** Merkezi kontrol ve koordinasyon
+
+#### TrafficFlowService.java [YENİ]
+- **Sorumluluk:** Trafik akışı yönetimi servisi
+- **Özellikler:**
+  - Araç segmentini güncelleme (updateVehicleSegment)
+  - Segment kurallarına uyum kontrolü (checkSegmentCompliance)
+  - Segment araç sayısı takibi (getVehicleCountForSegment)
+  - Kapasite kontrolü (isSegmentAtCapacity)
+  - Segment bazlı araç dağılımı yönetimi
+- **Kullanım:** Segment bazlı trafik organizasyonu
 
 #### TrafficControlCenter.java
 - **Sorumluluk:** Merkezi trafik kontrol sistemi (Singleton)
@@ -447,6 +527,16 @@ Route
 - CollisionDetectionService katman entegrasyonu ✅
 - ICAOStandardsCompliance katman entegrasyonu ✅
 - **Testler:** 5 dosya, ~35 yeni test metodu ✅
+
+#### ✅ Yol Bazlı Katman Organizasyonu (Sprint 4 - Faz 2 Temel Yapı)
+- RouteDirection.java (enum: FORWARD, REVERSE) ✅
+- RouteSegment.java (yol segmenti modeli) ✅
+- Route.createSegments() (rotayı segmentlere bölme) ✅
+- RouteNetwork segment yönetimi (createSegmentsForRoute, findNearestSegment, getSegmentsByDirection) ✅
+- Vehicle.currentSegment desteği ✅
+- TrafficFlowService.java (trafik akışı yönetimi) ✅
+- **Testler:** 5 dosya, ~60 yeni test metodu ✅
+- **Toplam Test:** 492 test geçti ✅
 
 ### Test İstatistikleri
 - **Backend Testleri:** 14 dosya, 280 test metodu ✅

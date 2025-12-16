@@ -3,11 +3,13 @@ package com.airtraffic.control;
 import com.airtraffic.map.CityMap;
 import com.airtraffic.model.CollisionRisk;
 import com.airtraffic.model.Position;
+import com.airtraffic.model.SystemState;
 import com.airtraffic.model.Vehicle;
 import com.airtraffic.rules.TrafficRuleEngine;
 import com.airtraffic.rules.TrafficRule;
 import com.airtraffic.spatial.Quadtree;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -368,6 +370,81 @@ public class TrafficControlCenter {
      */
     public CollisionDetectionService getCollisionService() {
         return collisionService;
+    }
+
+    /**
+     * Sistem durumunu JSON dosyasına kaydeder
+     * @param filePath Dosya yolu
+     * @throws IOException Dosya yazma hatası
+     */
+    public void saveState(String filePath) throws IOException {
+        PersistenceService persistenceService = new PersistenceService();
+        
+        // Create SystemState from current TrafficControlCenter state
+        SystemState systemState = new SystemState(
+            this.cityMap,
+            new ArrayList<>(this.activeVehicles.values()),
+            this.baseStations,
+            this.authorizations,
+            this.centerId,
+            this.isOperational
+        );
+        
+        persistenceService.saveState(systemState, filePath);
+    }
+
+    /**
+     * Sistem durumunu JSON dosyasından yükler
+     * @param filePath Dosya yolu
+     * @throws IOException Dosya okuma hatası
+     */
+    public void loadState(String filePath) throws IOException {
+        PersistenceService persistenceService = new PersistenceService();
+        SystemState systemState = persistenceService.loadState(filePath);
+        
+        // Restore TrafficControlCenter state from SystemState
+        this.cityMap = systemState.getCityMap();
+        this.centerId = systemState.getCenterId();
+        this.isOperational = systemState.isOperational();
+        
+        // Clear and restore vehicles
+        this.activeVehicles.clear();
+        for (Vehicle vehicle : systemState.getVehicles()) {
+            this.activeVehicles.put(vehicle.getId(), vehicle);
+        }
+        
+        // Clear and restore base stations
+        this.baseStations.clear();
+        this.baseStations.addAll(systemState.getBaseStations());
+        
+        // Clear and restore authorizations
+        this.authorizations.clear();
+        this.authorizations.putAll(systemState.getAuthorizations());
+        
+        // Reinitialize Quadtree if cityMap is loaded
+        if (this.cityMap != null) {
+            double minLat = cityMap.getMinLatitude();
+            double maxLat = cityMap.getMaxLatitude();
+            double minLon = cityMap.getMinLongitude();
+            double maxLon = cityMap.getMaxLongitude();
+            
+            // If bounds are not set, use default Istanbul bounds
+            if (minLat == 0.0 && maxLat == 0.0 && minLon == 0.0 && maxLon == 0.0) {
+                minLat = 40.8;
+                maxLat = 41.2;
+                minLon = 28.5;
+                maxLon = 29.5;
+            }
+            
+            this.vehicleIndex = new Quadtree(minLat, maxLat, minLon, maxLon);
+            
+            // Rebuild Quadtree with loaded vehicles
+            for (Vehicle vehicle : this.activeVehicles.values()) {
+                if (vehicle.getPosition() != null) {
+                    this.vehicleIndex.insert(vehicle);
+                }
+            }
+        }
     }
 }
 

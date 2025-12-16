@@ -1,6 +1,7 @@
 package com.airtraffic.model;
 
 import com.airtraffic.map.CityMap;
+import com.airtraffic.map.RouteSegment;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -27,6 +28,7 @@ public class Vehicle {
     private double weight;                  // Ağırlık (kg)
     private String manufacturer;           // Üretici
     private String model;                   // Model
+    private RouteSegment currentSegment;    // Mevcut yol segmenti
 
     public Vehicle() {
         this.id = UUID.randomUUID().toString();
@@ -82,6 +84,22 @@ public class Vehicle {
         this.lastUpdateTime = LocalDateTime.now();
     }
 
+    /**
+     * Mevcut yol segmentini döndürür
+     * @return Mevcut segment veya null
+     */
+    public RouteSegment getCurrentSegment() {
+        return currentSegment;
+    }
+    
+    /**
+     * Mevcut yol segmentini ayarlar
+     * @param segment Yeni segment
+     */
+    public void setCurrentSegment(RouteSegment segment) {
+        this.currentSegment = segment;
+    }
+    
     /**
      * Aracın mevcut konumuna göre uygun yükseklik katmanını döndürür.
      * Engeller, yasak bölgeler ve sınırlar dikkate alınır.

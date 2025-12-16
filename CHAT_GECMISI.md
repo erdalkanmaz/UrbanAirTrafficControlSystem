@@ -788,9 +788,91 @@ Kullanıcı tarafından tespit edilen önemli gözlemler:
 - [ ] Gerçekçi şehir haritası temin etme
 - [ ] Sprint 4 Faz 2 planlaması
 
-**Not:** Bu gözlemler `GELECEK_GELISTIRMELER.md` dosyasına kaydedildi. Gelecek oturumda bu gözlemler üzerinde fikir alışverişi yapılacak ve geliştirmeye devam edilecek.
+**Not:** Bu gözlemler `SPRINT_PLAN.md` dosyasına detaylı olarak kaydedildi. Gelecek oturumda bu gözlemler üzerinde fikir alışverişi yapılacak ve geliştirmeye devam edilecek.
 
 **Sonuç:** Sprint 4 Faz 1 başarıyla tamamlandı. Tüm yükseklik katmanları özellikleri entegre edildi ve test edildi. Uygulama çalıştırıldı ve doğrulandı.
+
+---
+
+### Oturum 8: Sprint 4 Faz 2 - Yol Bazlı Katman Organizasyonu Temel Yapı Tamamlandı (2025-12-16)
+
+**Tarih:** 2025-12-16  
+**Oturum Konusu:** Sprint 4 Faz 2 - Yol Bazlı Katman Organizasyonu (Temel Yapı)
+
+**Yapılan İşler:**
+
+1. **RouteDirection Enum Oluşturuldu:**
+   - FORWARD (gidiş yönü)
+   - REVERSE (geliş yönü)
+   - Testler: RouteDirectionTest (3 test)
+
+2. **RouteSegment Model Sınıfı Oluşturuldu:**
+   - Yol segmenti modeli (başlangıç/bitiş noktaları, yön, yükseklik, hız limiti, kapasite)
+   - Segment uzunluğu hesaplama (calculateLength)
+   - Konum segment üzerinde mi kontrolü (isOnSegment)
+   - Testler: RouteSegmentTest (18 test)
+
+3. **Route.createSegments() Metodu Eklendi:**
+   - Rotayı segmentlere bölme
+   - Yön bazlı segment oluşturma (FORWARD/REVERSE)
+   - Segment uzunluğu kontrolü ve alt segmentlere bölme
+
+4. **RouteNetwork Segment Yönetimi Eklendi:**
+   - createSegmentsForRoute() - Rotayı segmentlere bölme
+   - findNearestSegment() - En yakın segmenti bulma
+   - getSegmentsForRoute() - Rota segmentlerini getirme
+   - getAllActiveSegments() - Tüm aktif segmentler
+   - getSegmentsByDirection() - Yöne göre segmentler
+   - Testler: RouteNetworkSegmentTest (11 test)
+
+5. **Vehicle Entegrasyonu:**
+   - currentSegment desteği eklendi (getCurrentSegment, setCurrentSegment)
+   - Testler: VehicleTest (3 yeni test)
+
+6. **TrafficFlowService Oluşturuldu:**
+   - updateVehicleSegment() - Araç segmentini güncelleme
+   - checkSegmentCompliance() - Segment kurallarına uyum kontrolü (yükseklik, hız)
+   - getVehicleCountForSegment() - Segment araç sayısı
+   - isSegmentAtCapacity() - Kapasite kontrolü
+   - getVehiclesInSegment() - Segmentteki araçları getirme
+   - Segment bazlı araç dağılımı yönetimi
+   - Testler: TrafficFlowServiceTest (12 test)
+
+**Test Sonuçları:**
+- ✅ RouteDirectionTest: 3 test geçti
+- ✅ RouteSegmentTest: 18 test geçti
+- ✅ RouteNetworkSegmentTest: 11 test geçti
+- ✅ VehicleTest: 30 test geçti (3 yeni test eklendi)
+- ✅ TrafficFlowServiceTest: 12 test geçti
+- ✅ Toplam 492 test geçti (tüm proje testleri)
+
+**Kararlar:**
+
+1. **Temel Yapı Tamamlandı:** Yol bazlı katman organizasyonu için temel yapı oluşturuldu
+2. **TDD Yaklaşımı:** Tüm geliştirmeler Test-Driven Development ile yapıldı
+3. **Tartışma Sonrası Detaylar:** Ana yollar için doğu-batı/güney-kuzey katman organizasyonu, tali yollar için tek katman organizasyonu, geçiş yönetimi ve kesişme yönetimi tartışma sonrası eklenecek
+
+**Kullanıcı Önerisi ve Tartışma:**
+
+Kullanıcı tarafından önerilen mimari:
+- Ana yollar iki katmanda: Doğu-batı istikameti (1. katman), Güney-kuzey istikameti (2. katman)
+- Ana yollar hiçbir zaman aynı seviyede kesişmeyecek
+- Tali yollar tek katmanda: Tüm tali yollar aynı seviyede, düşük hız, kesişme mümkün
+- Detaylı tartışma için `KATMAN_ORGANIZASYONU_TARTISMA.md` dosyası oluşturuldu
+
+**Sonraki Adımlar:**
+
+- [ ] KATMAN_ORGANIZASYONU_TARTISMA.md üzerinde tartışma
+- [ ] Final mimari kararı
+- [ ] Ana yollar için doğu-batı/güney-kuzey katman organizasyonu implementasyonu
+- [ ] Tali yollar için tek katman organizasyonu implementasyonu
+- [ ] Geçiş yönetimi (ana yol ↔ tali yol) implementasyonu
+- [ ] Kesişme yönetimi (tali yollarda) implementasyonu
+- [ ] Gerçekçi şehir haritası entegrasyonu
+
+**Not:** Temel yapı tamamlandı. Tartışma sonrası detaylar eklenecek. `KATMAN_ORGANIZASYONU_TARTISMA.md` dosyası tartışma için hazır.
+
+**Sonuç:** Sprint 4 Faz 2 (Temel Yapı) başarıyla tamamlandı. Tüm temel yapı oluşturuldu ve test edildi. Toplam 492 test geçti.
 
 ---
 

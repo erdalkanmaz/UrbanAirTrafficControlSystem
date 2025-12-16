@@ -1,5 +1,7 @@
 package com.airtraffic.model;
 
+import com.airtraffic.map.RouteSegment;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -143,6 +145,79 @@ public class Route {
         isActive = active;
     }
 
+    /**
+     * Rotayı segmentlere böler
+     * @param segmentLength Her segmentin uzunluğu (metre)
+     * @param direction Segment yönü (FORWARD veya REVERSE)
+     * @param altitude Segment yüksekliği (metre)
+     * @param speedLimit Segment hız limiti (m/s)
+     * @return Oluşturulan segmentler listesi
+     */
+    public List<RouteSegment> createSegments(double segmentLength, RouteDirection direction, 
+                                             double altitude, double speedLimit) {
+        List<RouteSegment> segments = new ArrayList<>();
+        
+        if (waypoints.size() < 2) {
+            return segments; // En az 2 waypoint gerekli
+        }
+        
+        List<Position> points = direction == RouteDirection.FORWARD ? 
+            new ArrayList<>(waypoints) : 
+            new ArrayList<>(waypoints);
+        
+        if (direction == RouteDirection.REVERSE) {
+            // Reverse için waypoint'leri ters çevir
+            java.util.Collections.reverse(points);
+        }
+        
+        // Waypoint'ler arasında segmentler oluştur
+        for (int i = 0; i < points.size() - 1; i++) {
+            Position start = points.get(i);
+            Position end = points.get(i + 1);
+            
+            double distance = start.horizontalDistanceTo(end);
+            
+            // Eğer mesafe segment uzunluğundan büyükse, alt segmentlere böl
+            if (distance > segmentLength) {
+                int numSubSegments = (int) Math.ceil(distance / segmentLength);
+                double subSegmentLength = distance / numSubSegments;
+                
+                for (int j = 0; j < numSubSegments; j++) {
+                    double ratio1 = (double) j / numSubSegments;
+                    double ratio2 = (double) (j + 1) / numSubSegments;
+                    
+                    Position subStart = interpolatePosition(start, end, ratio1);
+                    Position subEnd = interpolatePosition(start, end, ratio2);
+                    
+                    RouteSegment segment = new RouteSegment(this, subStart, subEnd, 
+                        direction, altitude, speedLimit);
+                    segments.add(segment);
+                }
+            } else {
+                // Tek segment yeterli
+                RouteSegment segment = new RouteSegment(this, start, end, 
+                    direction, altitude, speedLimit);
+                segments.add(segment);
+            }
+        }
+        
+        return segments;
+    }
+    
+    /**
+     * İki konum arasında interpolasyon yapar
+     * @param start Başlangıç konumu
+     * @param end Bitiş konumu
+     * @param ratio Oran (0.0 - 1.0)
+     * @return İnterpolasyon sonucu konum
+     */
+    private Position interpolatePosition(Position start, Position end, double ratio) {
+        double lat = start.getLatitude() + (end.getLatitude() - start.getLatitude()) * ratio;
+        double lon = start.getLongitude() + (end.getLongitude() - start.getLongitude()) * ratio;
+        double alt = start.getAltitude() + (end.getAltitude() - start.getAltitude()) * ratio;
+        return new Position(lat, lon, alt);
+    }
+    
     @Override
     public String toString() {
         return String.format("Route[id=%s, name=%s, waypoints=%d, distance=%.2f m]",

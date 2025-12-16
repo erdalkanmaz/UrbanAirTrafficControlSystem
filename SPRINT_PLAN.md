@@ -312,11 +312,17 @@
 - [x] Uygulama çalıştırıldı ve doğrulandı
 - [x] Konsol çıktısında katman bilgileri gösteriliyor
 
-**Faz 2 (Yol Bazlı Organizasyon) - ⏳ PLANLANDI:**
-- [ ] Yol segmenti bazlı katman organizasyonu
-- [ ] Gidiş/geliş yönleri için ayrı katmanlar
-- [ ] Tek yönlü trafik organizasyonu
-- [ ] Kesişen yollar ve dönüş kuralları
+**Faz 2 (Yol Bazlı Organizasyon) - ✅ TEMEL YAPI TAMAMLANDI:**
+- [x] RouteDirection enum oluşturuldu (FORWARD, REVERSE)
+- [x] RouteSegment model sınıfı oluşturuldu
+- [x] Route.createSegments() metodu eklendi
+- [x] RouteNetwork segment yönetimi eklendi (createSegmentsForRoute, findNearestSegment, getSegmentsByDirection)
+- [x] Vehicle'a currentSegment desteği eklendi
+- [x] TrafficFlowService oluşturuldu (temel trafik akışı yönetimi)
+- [ ] Ana yollar için doğu-batı/güney-kuzey katman organizasyonu (tartışma sonrası)
+- [ ] Tali yollar için tek katman organizasyonu (tartışma sonrası)
+- [ ] Geçiş yönetimi (ana yol ↔ tali yol) (tartışma sonrası)
+- [ ] Kesişme yönetimi (tali yollarda) (tartışma sonrası)
 - [ ] Gerçekçi şehir haritası entegrasyonu
 
 **US-3.5 (Veri Kalıcılığı) - ⏳ PLANLANDI:**
@@ -324,10 +330,23 @@
 - [ ] JSON serialization/deserialization tamamlandı
 - [ ] UI menü güncellemeleri yapıldı
 
-**Gözlemler:**
-- Yol bazlı katman organizasyonu ihtiyacı tespit edildi (GELECEK_GELISTIRMELER.md'ye kaydedildi)
-- Tek yönlü trafik organizasyonu gereksinimi belirlendi
-- Gerçekçi şehir haritası ihtiyacı tespit edildi
+**Gözlemler ve Tespit Edilen Sorunlar:**
+
+1. **Yol Bazlı Katman Organizasyonu İhtiyacı:**
+   - Sorun: Binlerce aracı aynı yol üzerinde, yolun gidiş ve geliş olarak kendi içinde katmanlara bölündüğünü düşünürsek, en fazla 20m'lik bir yükseklik içinde farklı yükseklik katmanlarına yerleştirmek pek mümkün değil.
+   - Öneri: Yol bazlı katman organizasyonu gerekiyor. Her yol segmenti için gidiş ve geliş yönleri ayrı katmanlar olmalı. Her katman içinde tüm araçlar aynı seviyede (yükseklikte) olmalı.
+
+2. **Tek Yönlü Trafik Organizasyonu:**
+   - Sorun: Tek yönlü bir trafik olacağı için herhangi bir katman içinde tek bir yöne doğru trafikte bütün araçlar aynı seviyede yer almalı.
+   - Öneri: Ana yolda tüm araçlar aynı hız ve seviyede hareket etmeli. Sadece kesişen ve farklı yükseklikteki yollara dönüş yapan araçlar farklı hız ve seviyelere geçmeli. Yol segmenti bazlı hız limitleri ve yükseklik seviyeleri tanımlanmalı.
+
+3. **Kesişen Yollar ve Dönüşler:**
+   - Sorun: Farklı yükseklikteki yollara dönüş yapan araçlar için geçiş mekanizması gerekiyor.
+   - Öneri: Kesişen yollar için geçiş katmanları tanımlanmalı. Dönüş yapan araçlar için yükseklik ve hız geçiş kuralları olmalı. Geçiş sırasında çarpışma riski artacağı için özel kontrol mekanizmaları gerekiyor.
+
+4. **Uygulama Haritası İhtiyacı:**
+   - Mevcut Durum: Şu anda örnek/test haritası kullanılıyor, gerçekçi bir şehir haritası yok.
+   - Öneri: Gerçekçi bir şehir haritası temin edilmeli. Harita üzerinde yol ağı (RouteNetwork) detaylı olmalı, engeller (binalar, hastaneler) gerçekçi konumlarda olmalı, yasak bölgeler tanımlanmalı, yol segmentleri ve kesişimler net olmalı.
 
 ---
 
